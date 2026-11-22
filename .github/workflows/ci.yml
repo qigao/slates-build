@@ -33,8 +33,19 @@ jobs:
       - name: Configure
         shell: pwsh
         run: |
-          if (-not $env:CC) { $env:CC = (Get-Command clang -CommandType Application).Source }
-          cmake -S . -B out/ci -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          $compiler = $env:CC
+          if (-not $compiler) {
+            $compiler = (Get-Command clang -CommandType Application | Select-Object -First 1).Source
+          }
+          $options = @("-DCMAKE_C_COMPILER=$compiler")
+          if ($IsMacOS) {
+            $llvm = brew --prefix llvm@18
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $archiver = Join-Path $llvm 'bin/llvm-ar'
+            if (-not (Test-Path -LiteralPath $archiver -PathType Leaf)) { throw "Missing $archiver." }
+            $options += "-DCMAKE_AR=$archiver"
+          }
+          cmake -S . -B out/ci -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON @options
       - name: Build
         run: cmake --build out/ci --parallel
       - name: Test

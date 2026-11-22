@@ -49,7 +49,7 @@
       "driver": "clang", "cc": "clang", "cxx": "clang++", "ar": "llvm-ar", "ld": "clang++"
     },
     "apple-clang": {
-      "driver": "clang", "cc": "clang", "cxx": "clang++", "ar": "ar", "ld": "clang++"
+      "driver": "clang", "cc": "clang", "cxx": "clang++", "ar": "llvm-ar", "ld": "clang++"
     }
   }
 }

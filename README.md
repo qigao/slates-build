@@ -40,6 +40,9 @@ includes them in the CMake installation.
 
 Put the bootstrapped executable on `PATH`. The normal entry points use the shared `slate.json` and discover the repository from the working directory. For llvm-mingw, set `LLVM_MINGW_ROOT` to the installation directory in the project's `.env` or process environment.
 
+The macOS preset uses Apple Clang and `llvm-ar`. Add the LLVM installation's
+`bin` directory to `PATH` so Slate can find the response-file-capable archiver.
+
 The `env` list declares which variable names the project reads. Supply a nonempty value for every referenced variable through `.env` or the process environment.
 
 The [Slate Build extension](https://github.com/qigao/slates-extension) adds a Slate icon to
