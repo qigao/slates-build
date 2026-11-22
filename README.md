@@ -38,7 +38,11 @@ includes them in the CMake installation.
 
 ## Generate a build
 
-Put the bootstrapped executable on `PATH`. The normal entry points use the shared `slate.json` and discover the repository from the working directory. For llvm-mingw, set `LLVM_MINGW_ROOT` to the installation directory in the project's `.env` or process environment.
+Put the bootstrapped executable on `PATH`. The sample project starts at
+`apps/slate.json` and keeps its presets in `apps/presets/`. Run the examples
+from the repository root with `--root apps`, or run them from inside `apps/`
+and let Slate discover the project. See [apps/.env.example](apps/.env.example)
+for the Windows preset variables. Set them in `apps/.env` or the process environment.
 
 The macOS preset uses Apple Clang and `llvm-ar`. Add the LLVM installation's
 `bin` directory to `PATH` so Slate can find the response-file-capable archiver.
@@ -47,14 +51,15 @@ The `env` list declares which variable names the project reads. Supply a nonempt
 
 The [Slate Build extension](https://github.com/qigao/slates-extension) adds a Slate icon to
 VS Code's Activity Bar and opens a target tree with Build, Test, and Run actions.
+Open `apps/` as a workspace folder to browse the sample project.
 
 ```sh
-slate doctor
-slate build --target hello
-slate install --target hello --components runtime --prefix dist
+slate doctor --root apps
+slate build --root apps --target hello
+slate install --root apps --target hello --components runtime --prefix dist
 ```
 
-Use `--preset release` for optimized builds, `--compiler llvm-mingw` to constrain auto-selection on Windows, and `--build-dir <dir>` for a separate output directory. `build` generates the selected graph and runs Ninja, returning its exit status. Use `gen` to generate files for a separate Ninja invocation. `gen --explain hello` prints the selected module's effective settings. `graph --target hello --format dot` prints its declared dependencies.
+Use `--preset release` for optimized builds, `--compiler llvm-mingw` to constrain auto-selection on Windows, and `--build-dir <dir>` for a separate output directory. `build` generates the selected graph and runs Ninja, returning its exit status. Use `gen` to generate files for a separate Ninja invocation. `slate gen --root apps --explain hello` prints the sample target's effective settings. `slate graph --root apps --target hello --format dot` prints its declared dependencies.
 
 Use `slate tool list` to discover Ninja subtools. For an existing
 build, `slate tool query --build-dir DIR -- module/hello`

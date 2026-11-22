@@ -1,4 +1,6 @@
 /out/
+/apps/out/
+/apps/dist/
 .build
 build/
 .env

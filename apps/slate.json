@@ -2,7 +2,7 @@
     "include": ["presets/NativeToolchains.json", "presets/DefaultPreset.json"],
     "env": ["VSDEVCMD_BAT"],
     "defaultPreset": "debug",
-    "modules": ["apps/hello"],
+    "modules": ["hello"],
     "presets": {
         "debug-msvc": {
             "inherits": "debug",
