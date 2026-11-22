@@ -1,0 +1,61 @@
+[
+{% if policy.optimization == "none" %}
+  "/Od",
+{% elif policy.optimization == "size" %}
+  "/O1",
+{% else %}
+  "/O2",
+{% endif %}
+{% if policy.debug_info != "none" %}
+  "/Z7",
+{% endif %}
+{% if policy.warnings == "none" %}
+  "/W0",
+{% elif policy.warnings == "strict" %}
+  "/W4",
+{% endif %}
+{% if policy.werror %}
+  "/WX",
+{% endif %}
+{% if policy.runtime_lib == "dynamic" %}
+  {% if policy.debug_crt %}"/MDd",{% else %}"/MD",{% endif %}
+{% else %}
+  {% if policy.debug_crt %}"/MTd",{% else %}"/MT",{% endif %}
+{% endif %}
+  "/nologo", "/utf-8", "/Zc:preprocessor",
+{% if cxx %}
+  "/Zc:__cplusplus",
+{% if policy.rtti == "enabled" %}
+  "/GR",
+{% elif policy.rtti == "disabled" %}
+  "/GR-",
+{% endif %}
+{% if policy.exceptions == "disabled" %}
+  "/EHs-c-",
+{% else %}
+  "/EHsc",
+{% endif %}
+{% endif %}
+{% if standard %}
+  {{ ("/std:" ~ standard) | tojson }},
+{% endif %}
+{% if not cxx and (standard == "c11" or standard == "c17") %}
+  "/experimental:c11atomics",
+{% endif %}
+{% if policy.lto == "full" %}
+  "/GL",
+{% endif %}
+{% if policy.sanitizers %}
+  {{ ("/fsanitize=" ~ policy.sanitizers) | tojson }},
+{% endif %}
+{% for include in includes %}
+  {{ ("/I" ~ include) | tojson }},
+{% endfor %}
+{% for define in defines %}
+  {{ ("/D" ~ define) | tojson }},
+{% endfor %}
+{% for flag in flags %}
+  {{ flag | tojson }},
+{% endfor %}
+  "/showIncludes", "/c", {{ ("/Fo" ~ output) | tojson }}, {{ source | tojson }}
+]

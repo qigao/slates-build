@@ -1,0 +1,26 @@
+[
+{% if triple %}
+  {{ ("--target=" ~ triple) | tojson }},
+{% endif %}
+{% if sysroot %}
+  {{ ("--sysroot=" ~ sysroot) | tojson }},
+{% endif %}
+{% if shared %}
+  "-shared",
+{% if import_lib %}
+  "-Xlinker", "--out-implib", "-Xlinker", {{ import_lib | tojson }},
+{% endif %}
+{% endif %}
+  "-o", {{ output | tojson }}
+{% if lto == "thin" %}
+  , "-flto=thin"
+{% elif lto == "full" %}
+  , "-flto"
+{% endif %}
+{% if sanitizers %}
+  , {{ ("-fsanitize=" ~ sanitizers) | tojson }}
+{% endif %}
+{% for directory in lib_dirs %}
+  , {{ ("-L" ~ directory) | tojson }}
+{% endfor %}
+]

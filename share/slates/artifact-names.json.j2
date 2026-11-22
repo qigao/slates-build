@@ -1,0 +1,17 @@
+{% set windows = os == "windows" %}
+{% set apple = os == "macos" or os == "ios" %}
+{% set msvc = driver == "msvc" %}
+{
+  "executableSuffix": {% if windows %}".exe"{% else %}""{% endif %},
+  "staticPrefix": {% if msvc %}""{% else %}"lib"{% endif %},
+  "staticSuffix": {% if msvc %}".lib"{% else %}".a"{% endif %},
+  "sharedPrefix": {% if windows %}""{% else %}"lib"{% endif %},
+  "sharedSuffix": {% if windows %}".dll"{% elif apple %}".dylib"{% else %}".so"{% endif %},
+  "importPrefix": {% if msvc %}""{% else %}"lib"{% endif %},
+  "importSuffix": {% if msvc %}".lib"{% else %}".dll.a"{% endif %},
+  "objectSuffix": {% if msvc %}".obj"{% else %}".o"{% endif %},
+  "responseSuffix": ".rsp",
+  "depfileSuffix": ".d",
+  "pdbSuffix": ".pdb",
+  "symbolsSuffix": {% if windows %}""{% elif apple %}".dSYM"{% else %}".debug"{% endif %}
+}

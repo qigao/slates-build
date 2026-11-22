@@ -1,0 +1,9 @@
+#ifndef SLATE_TEMPLATE_PATHS_H
+#define SLATE_TEMPLATE_PATHS_H
+
+/* Overrides use the project root. Bundle paths use the executable directory. */
+#define PROJECT_TEMPLATE_DIR "@project_template_dir@"
+#define BUILD_TEMPLATE_DIR "@build_template_dir@"
+#define INSTALLED_TEMPLATE_PATH "@installed_template_path@"
+
+#endif

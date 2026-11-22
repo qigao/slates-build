@@ -1,0 +1,27 @@
+[
+{% if triple %}
+  {{ ("--target=" ~ triple) | tojson }},
+{% endif %}
+{% if darwin_arch %}
+  "-arch", {{ darwin_arch | tojson }},
+{% endif %}
+{% if sysroot %}
+  {{ ("--sysroot=" ~ sysroot) | tojson }},
+{% endif %}
+{% if shared %}
+  "-dynamiclib", {{ ("-Wl,-install_name,@rpath/" ~ output_name) | tojson }},
+{% endif %}
+  "-Wl,-rpath,@loader_path/../lib",
+  "-o", {{ output | tojson }}
+{% if lto == "thin" %}
+  , "-flto=thin"
+{% elif lto == "full" %}
+  , "-flto"
+{% endif %}
+{% if sanitizers %}
+  , {{ ("-fsanitize=" ~ sanitizers) | tojson }}
+{% endif %}
+{% for directory in lib_dirs %}
+  , {{ ("-L" ~ directory) | tojson }}
+{% endfor %}
+]

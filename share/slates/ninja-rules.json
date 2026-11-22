@@ -1,0 +1,9 @@
+{
+  "compileGnu": "compile_gcc",
+  "compileMsvc": "compile_msvc",
+  "archive": "response",
+  "link": "link",
+  "task": "task",
+  "regenerate": "regenerate",
+  "phony": "phony"
+}

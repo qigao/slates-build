@@ -1,0 +1,29 @@
+[
+{% if triple %}
+  {{ ("--target=" ~ triple) | tojson }},
+{% endif %}
+{% if sysroot %}
+  {{ ("--sysroot=" ~ sysroot) | tojson }},
+{% endif %}
+{% if shared %}
+  "-shared",
+{% if os == "linux" or os == "android" %}
+  {{ ("-Wl,-soname," ~ output_name) | tojson }},
+{% endif %}
+{% endif %}
+{% if os == "linux" %}
+  "-Wl,-rpath,$ORIGIN:$ORIGIN/../lib",
+{% endif %}
+  "-o", {{ output | tojson }}
+{% if lto == "thin" %}
+  , "-flto=thin"
+{% elif lto == "full" %}
+  , "-flto"
+{% endif %}
+{% if sanitizers %}
+  , {{ ("-fsanitize=" ~ sanitizers) | tojson }}
+{% endif %}
+{% for directory in lib_dirs %}
+  , {{ ("-L" ~ directory) | tojson }}
+{% endfor %}
+]

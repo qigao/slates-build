@@ -1,0 +1,41 @@
+name: Native CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: ${{ matrix.profile }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            profile: windows-llvm-mingw-x64
+          - runner: ubuntu-24.04
+            profile: linux-clang-x64
+          - runner: ubuntu-24.04-arm
+            profile: linux-clang-arm64
+          - runner: macos-15
+            profile: macos-clang-arm64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore pinned SDKs
+        shell: pwsh
+        run: ./.github/restore-sdks.ps1 -Profile '${{ matrix.profile }}'
+      - name: Configure
+        shell: pwsh
+        run: |
+          if (-not $env:CC) { $env:CC = (Get-Command clang -CommandType Application).Source }
+          cmake -S . -B out/ci -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+      - name: Build
+        run: cmake --build out/ci --parallel
+      - name: Test
+        run: ctest --test-dir out/ci --output-on-failure --no-tests=error

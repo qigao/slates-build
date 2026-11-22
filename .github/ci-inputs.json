@@ -1,0 +1,88 @@
+{
+  "windows-llvm-mingw-x64": [
+    {
+      "env": "SALTS_BASE_ROOT",
+      "marker": "SaltsBaseConfig.cmake",
+      "url": "https://github.com/qigao/salts-base/releases/download/v0.1.8/salts-base-0.1.8-windows-llvm-mingw-x64.tar",
+      "sha256": "2e787586e418ed1943d680b56a90cd725e545e77bdd3203fcc5f81a6799c7a28"
+    },
+    {
+      "env": "SALTS_UTILS_ROOT",
+      "marker": "SaltsUtilsConfig.cmake",
+      "url": "https://github.com/qigao/salts-utils/releases/download/v0.1.6/salts-utils-0.1.6-windows-llvm-mingw-x64.tar",
+      "sha256": "d953e5c2b3fc322f883f1e841bc391a4d49d6621d3e537815cf7bf6aaa256614"
+    },
+    {
+      "env": "CMETA_ROOT",
+      "marker": "CMetaConfig.cmake",
+      "url": "https://github.com/qigao/cmeta/releases/download/v0.1.8/cmeta-0.1.8-windows-llvm-mingw-x64.tar",
+      "sha256": "8ad99eb78a4e083c6b9b6a38e145bbb4f6db1d5d5f7929ff30f27fb7ac2407e0"
+    },
+    {
+      "env": "CC",
+      "marker": "x86_64-w64-mingw32-clang.exe",
+      "url": "https://github.com/mstorsjo/llvm-mingw/releases/download/20261020/llvm-mingw-20261020-ucrt-x86_64.zip",
+      "sha256": "fd5462b7f5d93b2ff981fcd3f9c7e427e47f3203c64ea91c27bcc444eebd74cd"
+    }
+  ],
+  "linux-clang-x64": [
+    {
+      "env": "SALTS_BASE_ROOT",
+      "marker": "SaltsBaseConfig.cmake",
+      "url": "https://github.com/qigao/salts-base/releases/download/v0.1.8/salts-base-0.1.8-linux-clang-x64.tar",
+      "sha256": "0414ecf3e6dfcefc61073c09b6ad5a41423eb1654572d8d6cfb9792d2212a585"
+    },
+    {
+      "env": "SALTS_UTILS_ROOT",
+      "marker": "SaltsUtilsConfig.cmake",
+      "url": "https://github.com/qigao/salts-utils/releases/download/v0.1.6/salts-utils-0.1.6-linux-clang-x64.tar",
+      "sha256": "0b96e1e3c3ae3b12728991ecad3efe5d05e8a0d7eaf0212dd9a8a09f5f9ebc10"
+    },
+    {
+      "env": "CMETA_ROOT",
+      "marker": "CMetaConfig.cmake",
+      "url": "https://github.com/qigao/cmeta/releases/download/v0.1.8/cmeta-0.1.8-linux-clang-x64.tar",
+      "sha256": "86532f91d9f39582f5295ac8ec13d2cf9c5045cf2075928092bad6c7f114f985"
+    }
+  ],
+  "linux-clang-arm64": [
+    {
+      "env": "SALTS_BASE_ROOT",
+      "marker": "SaltsBaseConfig.cmake",
+      "url": "https://github.com/qigao/salts-base/releases/download/v0.1.8/salts-base-0.1.8-linux-clang-arm64.tar",
+      "sha256": "0f8139280ca73b6e4e9837f8682d1c393f3b975c242e05017f543c802fc662f7"
+    },
+    {
+      "env": "SALTS_UTILS_ROOT",
+      "marker": "SaltsUtilsConfig.cmake",
+      "url": "https://github.com/qigao/salts-utils/releases/download/v0.1.6/salts-utils-0.1.6-linux-clang-arm64.tar",
+      "sha256": "89a38269de322d7eef8448f6d8945bd153ad22bce2ff02e29cc61d8758fceb62"
+    },
+    {
+      "env": "CMETA_ROOT",
+      "marker": "CMetaConfig.cmake",
+      "url": "https://github.com/qigao/cmeta/releases/download/v0.1.8/cmeta-0.1.8-linux-clang-arm64.tar",
+      "sha256": "08409244388fad584c677817ce651bf0af586c53a98f36629e29c9a24bbd03c0"
+    }
+  ],
+  "macos-clang-arm64": [
+    {
+      "env": "SALTS_BASE_ROOT",
+      "marker": "SaltsBaseConfig.cmake",
+      "url": "https://github.com/qigao/salts-base/releases/download/v0.1.8/salts-base-0.1.8-macos-clang-arm64.tar",
+      "sha256": "9c189b94732cfec35231d1ba262efdbb7414013b181a531fa1bae2caf2959dbe"
+    },
+    {
+      "env": "SALTS_UTILS_ROOT",
+      "marker": "SaltsUtilsConfig.cmake",
+      "url": "https://github.com/qigao/salts-utils/releases/download/v0.1.6/salts-utils-0.1.6-macos-clang-arm64.tar",
+      "sha256": "e587da4ecb37d736ca1d49a0b00fbbcc7e18aa308f6adbc9d3e4cbac2d8a69e1"
+    },
+    {
+      "env": "CMETA_ROOT",
+      "marker": "CMetaConfig.cmake",
+      "url": "https://github.com/qigao/cmeta/releases/download/v0.1.8/cmeta-0.1.8-macos-clang-arm64.tar",
+      "sha256": "d309cc0952152f4f35d0f563b8168bd650d2c2754b1adc520906a0d6e7a3ccd7"
+    }
+  ]
+}

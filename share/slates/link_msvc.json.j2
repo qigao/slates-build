@@ -1,0 +1,20 @@
+[
+  "/nologo",
+  {{ ("/MACHINE:" ~ machine) | tojson }},
+  {{ ("/OUT:" ~ output) | tojson }}
+{% if shared %}
+  , "/DLL"
+{% endif %}
+{% if import_lib %}
+  , {{ ("/IMPLIB:" ~ import_lib) | tojson }}
+{% endif %}
+{% if pdb %}
+  , "/DEBUG", {{ ("/PDB:" ~ pdb) | tojson }}
+{% endif %}
+{% if lto == "full" %}
+  , "/LTCG"
+{% endif %}
+{% for directory in lib_dirs %}
+  , {{ ("/LIBPATH:" ~ directory) | tojson }}
+{% endfor %}
+]

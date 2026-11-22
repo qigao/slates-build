@@ -1,0 +1,47 @@
+ninja_required_version = 1.10
+
+pool link_pool
+  depth = {{ link_pool_depth }}
+
+{% for rule in rules %}
+{% if rule.kind != "phony" %}
+rule {{ rule.name }}
+  command = $run
+{% if rule.kind == "compileGnu" %}
+  deps = gcc
+  depfile = $dep
+{% elif rule.kind == "compileMsvc" %}
+  deps = msvc
+{% endif %}
+{% if rule.kind == "compileGnu" or rule.kind == "compileMsvc" or rule.kind == "archive" or rule.kind == "link" %}
+  rspfile = $response
+  rspfile_content = $argv
+{% endif %}
+{% if rule.kind == "link" %}
+  pool = link_pool
+  # Linkers can preserve an unchanged import library.
+{% endif %}
+{% if rule.kind == "regenerate" %}
+  generator = 1
+{% endif %}
+{% if rule.kind == "link" or rule.kind == "task" or rule.kind == "regenerate" %}
+  restat = 1
+{% endif %}
+
+{% endif %}
+{% endfor %}
+{% for edge in edges %}
+build {{ edge.outputs }}{% if edge.implicit_outputs %} | {{ edge.implicit_outputs }}{% endif %}: {{ edge.rule }}{% if edge.inputs %} {{ edge.inputs }}{% endif %}{% if edge.implicit_inputs %} | {{ edge.implicit_inputs }}{% endif %}{% if edge.order_only %} || {{ edge.order_only }}{% endif %}{{ "\n" -}}
+{% if edge.run %}
+  run = {{ edge.run }}
+{% endif %}
+{% if edge.response %}
+  response = {{ edge.response }}
+  argv = {{ edge.argv }}
+{% endif %}
+{% if edge.dep %}
+  dep = {{ edge.dep }}
+{% endif %}
+{% endfor %}
+
+default all

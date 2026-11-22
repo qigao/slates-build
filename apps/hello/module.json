@@ -1,0 +1,4 @@
+{
+  "kind": "exec",
+  "sources": { "files": ["hello.c"] }
+}

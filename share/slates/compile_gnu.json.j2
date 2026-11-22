@@ -1,0 +1,77 @@
+[
+{% if policy.optimization == "none" %}
+  "-O0",
+{% elif policy.optimization == "size" %}
+  "-Os",
+{% else %}
+  "-O2",
+{% endif %}
+{% if policy.debug_info == "full" %}
+  "-g",
+{% elif policy.debug_info == "minimal" %}
+  "-g1",
+{% endif %}
+{% if policy.warnings == "none" %}
+  "-w",
+{% elif policy.warnings == "strict" %}
+  "-Wall", "-Wextra",
+{% endif %}
+{% if policy.werror %}
+  "-Werror",
+{% endif %}
+{% if triple %}
+  {{ ("--target=" ~ triple) | tojson }},
+{% endif %}
+{% if darwin_arch %}
+  "-arch", {{ darwin_arch | tojson }},
+{% endif %}
+{% if sysroot %}
+  {{ ("--sysroot=" ~ sysroot) | tojson }},
+{% endif %}
+{% if pic %}
+  "-fPIC",
+{% endif %}
+{% if policy.symbol_visibility != "default" %}
+  {{ ("-fvisibility=" ~ policy.symbol_visibility) | tojson }},
+{% endif %}
+{% if policy.visibility_inlines_hidden %}
+  "-fvisibility-inlines-hidden",
+{% endif %}
+{% if cxx %}
+{% if policy.rtti == "enabled" %}
+  "-frtti",
+{% elif policy.rtti == "disabled" %}
+  "-fno-rtti",
+{% endif %}
+{% if policy.exceptions == "enabled" %}
+  "-fexceptions",
+{% elif policy.exceptions == "disabled" %}
+  "-fno-exceptions",
+{% endif %}
+{% endif %}
+{% if standard %}
+  {{ ("-std=" ~ standard) | tojson }},
+{% endif %}
+{% if policy.lto == "thin" %}
+  "-flto=thin",
+{% elif policy.lto == "full" %}
+  "-flto",
+{% endif %}
+{% if policy.sanitizers %}
+  {{ ("-fsanitize=" ~ policy.sanitizers) | tojson }},
+{% endif %}
+{% if objc %}
+  "-x", "objective-c",
+{% endif %}
+{% for include in includes %}
+  {{ ("-I" ~ include) | tojson }},
+{% endfor %}
+{% for define in defines %}
+  {{ ("-D" ~ define) | tojson }},
+{% endfor %}
+{% for flag in flags %}
+  {{ flag | tojson }},
+{% endfor %}
+  "-MMD", "-MF", {{ depfile | tojson }}, "-MQ", {{ output | tojson }},
+  "-c", "-o", {{ output | tojson }}, {{ source | tojson }}
+]

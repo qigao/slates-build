@@ -1,0 +1,48 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "process",
+      "label": "CMake: configure Slate (LLVM-MinGW Release)",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "$ErrorActionPreference = 'Stop'; $compiler = & ./.vscode/load-env.ps1 -ForConfigure; & cmake --fresh -S . -B out/bootstrap -G Ninja ('-DCMAKE_C_COMPILER=' + $compiler) -DCMAKE_BUILD_TYPE=Release; exit $LASTEXITCODE"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "detail": "Load the bootstrap SDK paths from .env and configure out/bootstrap"
+    },
+    {
+      "type": "process",
+      "label": "CMake: build Slate",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "$ErrorActionPreference = 'Stop'; & ./.vscode/load-env.ps1; & cmake --build out/bootstrap --target slate; exit $LASTEXITCODE"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": [],
+      "detail": "Load the bootstrap environment and build slate in out/bootstrap"
+    },
+    {
+      "label": "CMake: configure and build Slate",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "CMake: configure Slate (LLVM-MinGW Release)",
+        "CMake: build Slate"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}
