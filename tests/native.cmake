@@ -236,7 +236,7 @@ set(expected 34)
 string(CONFIGURE "${main}" first_main @ONLY)
 file(WRITE "${WORK}/apps/test/main.cpp" "${first_main}")
 
-if(CMAKE_HOST_WIN32 AND DEFINED TEST_INSTALL_TREE AND
+if(DEFINED TEST_INSTALL_TREE AND
     NOT IS_ABSOLUTE "${TEST_INSTALL_BINDIR}" AND NOT IS_ABSOLUTE "${TEST_INSTALL_DATADIR}")
   string(RANDOM LENGTH 8 ALPHABET 0123456789abcdef bundle_run)
   set(bundle_dir "${WORK}/out/bundle ${bundle_run}")

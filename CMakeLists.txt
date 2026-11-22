@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.27)
-project(slate VERSION 0.1.0 LANGUAGES C)
+project(slate VERSION 0.1.14 LANGUAGES C)
 
 find_package(
 	SaltsBase
@@ -101,12 +101,30 @@ add_custom_target("${template_staging_target}"
 	VERBATIM
 )
 add_dependencies("${PROJECT_NAME}" "${template_staging_target}")
+
+if(UNIX)
+	file(RELATIVE_PATH installed_library_path
+		"${CMAKE_INSTALL_FULL_BINDIR}" "${CMAKE_INSTALL_FULL_LIBDIR}")
+	if(APPLE)
+		set(loader_directory "@loader_path")
+	else()
+		set(loader_directory "$ORIGIN")
+	endif()
+	set_target_properties("${PROJECT_NAME}" PROPERTIES
+		INSTALL_RPATH "${loader_directory}/${installed_library_path}")
+endif()
+
 install(FILES ${templates} DESTINATION "${install_template_dir}")
+install(FILES LICENSE THIRD_PARTY_NOTICES.md DESTINATION .)
+install(DIRECTORY licenses/ DESTINATION licenses)
 install(TARGETS "${PROJECT_NAME}" RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
-if(WIN32)
-	foreach(sdk_target Salts::Core Salts::JinjaCMeta)
+foreach(sdk_target Salts::Core Salts::JinjaCMeta Salts::Unicode CMeta::CMeta CMeta::CSTL)
+	if(TARGET "${sdk_target}")
 		get_target_property(sdk_type "${sdk_target}" TYPE)
-		if(sdk_type STREQUAL "SHARED_LIBRARY")
+		if(NOT sdk_type STREQUAL "SHARED_LIBRARY")
+			continue()
+		endif()
+		if(WIN32)
 			add_custom_command(
 				TARGET "${PROJECT_NAME}"
 				POST_BUILD
@@ -114,13 +132,12 @@ if(WIN32)
 					"$<TARGET_FILE:${sdk_target}>" "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
 				VERBATIM
 			)
-			install(
-				FILES "$<TARGET_FILE:${sdk_target}>"
-				DESTINATION "${CMAKE_INSTALL_BINDIR}"
-			)
 		endif()
-	endforeach()
-endif()
+		install(IMPORTED_RUNTIME_ARTIFACTS "${sdk_target}"
+			RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+			LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+	endif()
+endforeach()
 
 include(CTest)
 if(BUILD_TESTING)

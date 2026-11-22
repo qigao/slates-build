@@ -5,7 +5,14 @@
 See the [guide](docs/guide.md) for generation, installation, and test workflows and the
 [grammar](docs/grammar.md) for the CLI, presets, and module manifest syntax.
 
+Slate is licensed under [Apache-2.0](LICENSE). The CLI archives also include
+[third-party notices](THIRD_PARTY_NOTICES.md).
+
 ## Bootstrap
+
+Download a CLI archive for your host from [GitHub Releases](https://github.com/qigao/slates-build/releases).
+Extract it and put its `bin/` directory on `PATH`. Slate uses Ninja 1.10 or later
+and the compiler selected by your project's toolchain.
 
 Use CMake 3.27 or later, Ninja, a C11 compiler, and ABI-matched SDKs. Bootstrap links **SaltsBase 0.1.8**, **SaltsUtils 0.1.6**, and **CMeta 0.1.8**. [Native CI](.github/workflows/ci.yml) downloads and checks the [pinned SDK archives](.github/ci-inputs.json) before building and running CTest on Windows x64, Linux x64 and ARM64, and macOS ARM64.
 
@@ -92,7 +99,8 @@ and removals of active overrides.
 A standard `cmake --install` puts the executable in `bin/` and its templates
 in `share/slates/`. Slate locates that directory relative to its executable,
 so the installation can be copied or archived as one bundle. On Windows,
-include the DLLs installed in `bin/`. The installed templates remain external
+keep the DLLs installed in `bin/`. On Linux and macOS, keep the bundled `lib/`
+directory. The installed templates remain external
 files and can be updated in the bundle.
 
 Each compilation uses `compile_msvc.json.j2` or `compile_gnu.json.j2`. The
