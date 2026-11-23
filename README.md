@@ -6,6 +6,9 @@ Start with the [Slate documentation site](https://qigao.github.io/slates-build/)
 See the [guide](docs/guide.md) for generation, installation, and test workflows and the
 [grammar](docs/grammar.md) for the CLI, presets, and module manifest syntax.
 
+The GitHub Pages workflow builds the site from [`site/`](site/) and renders
+the guide and grammar from `docs/`.
+
 Slate is licensed under [Apache-2.0](LICENSE). The CLI archives also include
 [third-party notices](THIRD_PARTY_NOTICES.md).
 

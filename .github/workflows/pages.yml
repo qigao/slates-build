@@ -1,0 +1,67 @@
+name: GitHub Pages
+
+on:
+  pull_request:
+    paths:
+      - 'site/**'
+      - docs/guide.md
+      - docs/grammar.md
+      - .github/workflows/pages.yml
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - docs/guide.md
+      - docs/grammar.md
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Stage site and documentation
+        run: |
+          cp -R site _pages-source
+          cp docs/guide.md docs/grammar.md _pages-source/
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./_pages-source
+          destination: ./_site
+      - name: Verify built pages
+        run: |
+          test -s _site/index.html
+          grep -Fq '<h1 id="slate-guide">Slate guide</h1>' _site/guide.html
+          grep -Fq '<h1 id="slate-grammar">Slate grammar</h1>' _site/grammar.html
+          grep -Fq '<article class="prose">' _site/guide.html
+          grep -Fq '<article class="prose">' _site/grammar.html
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./_site
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

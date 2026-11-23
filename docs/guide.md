@@ -1,8 +1,3 @@
----
-layout: document
-title: Slate guide
----
-
 # Slate guide
 
 `slate` validates project configuration and generates a Ninja build.
