@@ -57,9 +57,10 @@ The macOS preset uses Apple Clang and `llvm-ar`. Add the LLVM installation's
 
 The `env` list declares which variable names the project reads. Supply a nonempty value for every referenced variable through `.env` or the process environment.
 
-The [Slate Build extension](https://github.com/qigao/slates-extension) adds a Slate icon to
-VS Code's Activity Bar and opens a target tree with Build, Test, and Run actions.
-Open `apps/` as a workspace folder to browse the sample project.
+The [Slate Build extension](https://marketplace.visualstudio.com/items?itemName=slates-build.slates-extension)
+adds a Slate icon to VS Code's Activity Bar and opens a target tree with Build,
+Test, and Run actions. A [VSIX download](https://github.com/qigao/slates-extension/releases/latest)
+is also available. Open `apps/` as a workspace folder to browse the sample project.
 
 ```sh
 slate doctor --root apps

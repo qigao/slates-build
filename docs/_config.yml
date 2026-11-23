@@ -3,6 +3,8 @@ description: Build, run, and test C and C++ projects with Slate and Ninja.
 url: https://qigao.github.io
 baseurl: /slates-build
 repository: qigao/slates-build
+vscode_extension: https://marketplace.visualstudio.com/items?itemName=slates-build.slates-extension
+vscode_releases: https://github.com/qigao/slates-extension/releases/latest
 markdown: kramdown
 plugins:
   - jekyll-relative-links

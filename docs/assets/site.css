@@ -1,13 +1,13 @@
 :root {
-  color-scheme: dark;
-  --surface: #10151d;
-  --panel: #161e29;
-  --code: #0c1119;
-  --text: #eef4fb;
-  --muted: #b7c4d5;
-  --line: #334153;
-  --accent: #8ee8ce;
-  --accent-hover: #bcf4e4;
+  color-scheme: light;
+  --surface: #f7f9fc;
+  --panel: #fff;
+  --code: #edf2f8;
+  --text: #18243a;
+  --muted: #46566b;
+  --line: #cbd6e3;
+  --accent: #17665a;
+  --accent-hover: #10463f;
   --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
   font-family: "Segoe UI", system-ui, sans-serif;
 }
@@ -36,7 +36,7 @@ a:hover { color: var(--accent-hover); }
 }
 .skip:focus { transform: none; }
 .wrap { width: min(71rem, calc(100% - 3rem)); margin-inline: auto; }
-.site-header { border-bottom: 1px solid var(--line); }
+.site-header { background: var(--panel); border-bottom: 1px solid var(--line); }
 .header-inner, .footer-inner {
   display: flex;
   justify-content: space-between;
@@ -61,7 +61,7 @@ a:hover { color: var(--accent-hover); }
   height: .8rem;
   border: .13rem solid var(--accent);
   border-radius: .16rem;
-  box-shadow: .2rem .24rem 0 -.07rem var(--surface), .22rem .26rem 0 .03rem var(--accent);
+  box-shadow: .2rem .24rem 0 -.07rem var(--panel), .22rem .26rem 0 .03rem var(--accent);
   transform: rotate(-17deg);
   margin-right: .16rem;
 }
@@ -104,7 +104,7 @@ p { margin: 0 0 1rem; }
   font-weight: 650;
   font-size: .95rem;
 }
-.button.primary { background: var(--accent); color: #10251d; }
+.button.primary { background: var(--accent); color: #fff; }
 .button.primary:hover { background: var(--accent-hover); }
 .button.secondary { border-color: var(--line); color: var(--text); }
 .button.secondary:hover { border-color: var(--accent); color: var(--accent); }
@@ -114,7 +114,7 @@ p { margin: 0 0 1rem; }
   border-radius: .75rem;
   overflow: hidden;
   background: var(--code);
-  box-shadow: 0 1.1rem 3rem #0005;
+  box-shadow: 0 .8rem 2.3rem #2540571a;
 }
 .terminal figcaption {
   padding: .7rem 1rem;
@@ -225,6 +225,7 @@ pre code { font-size: inherit; overflow-wrap: normal; }
 }
 @media (max-width: 38rem) {
   .wrap { width: calc(100% - 2rem); }
-  .header-inner { padding-block: .45rem; }
+  .header-inner { gap: .25rem .9rem; padding-block: .45rem; }
+  .site-nav { column-gap: .85rem; }
   .steps, .path-grid { grid-template-columns: minmax(0, 1fr); }
 }
