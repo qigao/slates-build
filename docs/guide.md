@@ -1,3 +1,8 @@
+---
+layout: document
+title: Slate guide
+---
+
 # Slate guide
 
 `slate` validates project configuration and generates a Ninja build.
@@ -7,7 +12,7 @@ and runs tests declared in the project's module manifests.
 ## Bootstrap the generator
 
 Install CMake 3.27 or later, Ninja, and the ABI-matched SDKs listed in the
-[bootstrap README](../README.md#bootstrap). On Windows with LLVM-MinGW,
+[bootstrap README](https://github.com/qigao/slates-build#bootstrap). On Windows with LLVM-MinGW,
 use the VS Code task **CMake: configure and build Slate** or follow the manual
 PowerShell commands in the bootstrap README. With another toolchain, supply
 the SDK roots to CMake and configure with the matching compiler.
@@ -182,7 +187,7 @@ its own child manifests with `"include": ["examples/module.json", "test/module.j
 Child paths resolve from the including manifest. A project with third-party
 targets can list `third_party` in `modules`.
 
-Copy the sample [NativeToolchains.json](../apps/presets/NativeToolchains.json)
+Copy the sample [NativeToolchains.json](https://github.com/qigao/slates-build/blob/main/apps/presets/NativeToolchains.json)
 into the project's `presets/` directory. These presets give a native debug
 build by default.
 

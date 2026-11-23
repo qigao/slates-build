@@ -1,0 +1,59 @@
+---
+layout: default
+title: Slate
+---
+<div class="wrap">
+  <section class="hero">
+    <div>
+      <h1>Build with Slate.</h1>
+      <p>Define C and C++ targets in JSON. Slate resolves your toolchain, generates Ninja rules, and lets you build, run, test, and install from one CLI.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="#quickstart">Quickstart</a>
+        <a class="button secondary" href="https://github.com/qigao/slates-build/releases/latest">Download Slate</a>
+      </div>
+    </div>
+    <figure class="terminal">
+      <figcaption>Sample project output</figcaption>
+      <pre><code><span class="prompt">$ </span>slate run --root apps --target hello
+<span class="terminal-output">Hello from slate.</span></code></pre>
+    </figure>
+  </section>
+
+  <section class="quickstart" id="quickstart" aria-labelledby="quickstart-title">
+    <h2 id="quickstart-title">Run your first build</h2>
+    <div class="steps">
+      <div>
+        <h3>Install the CLI</h3>
+        <p>Get the <a href="https://github.com/qigao/slates-build/releases/latest">release archive for your host</a>. Keep the extracted bundle together and add its <code>bin/</code> directory to <code>PATH</code>. You also need Ninja 1.10 or later and a C/C++ toolchain.</p>
+        <pre class="snippet"><code>slate --version
+ninja --version</code></pre>
+      </div>
+      <div>
+        <h3>Build the sample</h3>
+        <p>From the source checkout, use <code>apps/</code> as the project root. On Windows, see <a href="{{ '/guide.html' | relative_url }}#select-a-platform-and-compiler">toolchain setup</a> for the LLVM-MinGW and MSVC presets.</p>
+        <pre class="snippet"><code>git clone https://github.com/qigao/slates-build.git
+cd slates-build
+slate doctor --root apps --target hello
+slate run --root apps --target hello</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="paths" aria-labelledby="paths-title">
+    <h2 id="paths-title">Use Slate in your project</h2>
+    <div class="path-grid">
+      <div>
+        <h3><a href="{{ '/guide.html' | relative_url }}#configure-a-project-and-register-a-test">Configure targets</a></h3>
+        <p>Define presets in <code>slate.json</code> and targets in <code>module.json</code>. Look up accepted fields in the <a href="{{ '/grammar.html' | relative_url }}">manifest reference</a>.</p>
+      </div>
+      <div>
+        <h3><a href="{{ '/guide.html' | relative_url }}#install-build-outputs">Test and install</a></h3>
+        <p>Run registered tests with <code>slate test</code> and stage build artifacts with <code>slate install</code>.</p>
+      </div>
+      <div>
+        <h3><a href="https://github.com/qigao/slates-extension">Work in VS Code</a></h3>
+        <p>Use the Slate extension to select presets, browse targets, and launch builds and tests.</p>
+      </div>
+    </div>
+  </section>
+</div>

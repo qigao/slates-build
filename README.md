@@ -2,6 +2,7 @@
 
 `slate` resolves shared platform and compiler templates into a Ninja build. The repository includes a small `hello` target and a CTest fixture covering a mixed C/C++ build.
 
+Start with the [Slate documentation site](https://qigao.github.io/slates-build/).
 See the [guide](docs/guide.md) for generation, installation, and test workflows and the
 [grammar](docs/grammar.md) for the CLI, presets, and module manifest syntax.
 

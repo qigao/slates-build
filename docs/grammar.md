@@ -1,3 +1,8 @@
+---
+layout: document
+title: Slate grammar
+---
+
 # Slate grammar
 
 This reference describes the public CLI and the configuration accepted by the
@@ -658,7 +663,7 @@ and `output_name` is the output's basename. Rule `kind` uses a key from
 fields arrive escaped for Ninja. Use `tojson` on dynamic strings in argument-array templates.
 
 The filenames and their bundled contents are in
-[`share/slates/`](../share/slates). Add a same-named project override
+[`share/slates/`](https://github.com/qigao/slates-build/tree/main/share/slates). Add a same-named project override
 to change the applicable template. The artifact-name template returns these
 string fields.
 
@@ -674,5 +679,5 @@ ArtifactNames = record {
 };
 ```
 
-The [end-to-end fixture](../tests/native.cmake)
+The [end-to-end fixture](https://github.com/qigao/slates-build/blob/main/tests/native.cmake)
 exercises manifest parsing, generation, Ninja execution, regeneration, and `slate test`.

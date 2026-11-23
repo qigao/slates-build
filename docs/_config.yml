@@ -1,0 +1,8 @@
+title: Slate
+description: Build, run, and test C and C++ projects with Slate and Ninja.
+url: https://qigao.github.io
+baseurl: /slates-build
+repository: qigao/slates-build
+markdown: kramdown
+plugins:
+  - jekyll-relative-links
