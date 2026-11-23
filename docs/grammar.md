@@ -271,8 +271,8 @@ also supply the compiler and SDK settings.
 Set `triple` for Clang or LLVM-MinGW when the selected compiler's default
 target differs from the desired one. GCC needs an executable already
 configured for the target. Set `sysroot` when the GNU-style compiler needs
-target headers and libraries from a separate SDK tree. See the [cross-build
-example](guide.md#add-a-cross-target).
+target headers and libraries from a separate SDK tree. See the
+[cross-build example](guide.md#add-a-cross-target).
 
 ## Module manifests
 
