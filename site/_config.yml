@@ -8,3 +8,15 @@ vscode_releases: https://github.com/qigao/slates-extension/releases/latest
 markdown: kramdown
 plugins:
   - jekyll-relative-links
+  - jekyll-optional-front-matter
+defaults:
+  - scope:
+      path: guide.md
+    values:
+      layout: document
+      title: Slate guide
+  - scope:
+      path: grammar.md
+    values:
+      layout: document
+      title: Slate grammar

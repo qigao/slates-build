@@ -1,8 +1,3 @@
----
-layout: document
-title: Slate grammar
----
-
 # Slate grammar
 
 This reference describes the public CLI and the configuration accepted by the
