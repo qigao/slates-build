@@ -273,7 +273,7 @@ target headers and libraries from a separate SDK tree. See the
 
 ```ebnf
 ModuleManifest = (ModuleRecord | record { "$schema"?: String; }) + ManifestFields ;
-ManifestFields = Groups + record { "include"?: list(Path); } ;
+ManifestFields = Groups + record { "include"?: list(Path); "modules"?: list(Path); } ;
 Groups = record {
   "targets"?: map(Identifier, NamedTarget);
   "forEach"?: list(FileGroup);
@@ -352,12 +352,13 @@ FileTarget = ModuleRecord without the "name" field ;
 FilePattern = String ;
 ```
 
-`include` is a top-level list of literal module manifest paths resolved
-relative to the including manifest. A manifest can consist of `include`
-alone. Every file must exist within the repository. Slate loads each
-resolved file once and rejects include cycles. Included files keep their
-own relative paths and folder in DOT. Ninja tracks every loaded manifest
-for regeneration.
+At the top level of a module manifest, `modules` lists directories and
+loads `module.json` from each directory. `include` lists explicit manifest
+paths. Both resolve from the current manifest's directory and can appear
+together. A manifest can consist of either field alone. Every resolved file
+must exist within the repository. Slate loads each resolved file once and
+rejects cycles across either field. Included files keep their own relative
+paths and folder in DOT. Ninja tracks every loaded manifest for regeneration.
 
 The top-level manifest can combine a direct module with `targets` and
 `forEach`. The direct module uses its `name` or the manifest directory's
