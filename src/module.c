@@ -295,11 +295,13 @@ static void add_module(Graph *g, Settings *declared, const char *file,
                        const char *matched_source, bool direct) {
   check_fields(
       data, file,
-      " $schema include name kind visibility toolchainRole extends sources "
+      " $schema include modules name kind visibility toolchainRole extends sources "
       "private public options variants runtimeDeps runtimeBins preTasks targets test "
       "outputPrefix forEach when testOnly ninjaRules install package ");
-  if (!direct && (member(data, "name") || member(data, "include")))
-    failf("{}: name and include belong at the top level of the manifest", file);
+  if (!direct && (member(data, "name") || member(data, "include") ||
+                  member(data, "modules")))
+    failf("{}: name, include and modules belong at the top level of the manifest",
+          file);
   const char *name = optional_string(member(data, "name"), file);
   if (!name)
     name = default_name;
@@ -479,7 +481,8 @@ static void add_matching_targets(Graph *g, Settings *declared, const char *file,
     const Json *target = member(group, "target");
     object(target, file);
     if (member(target, "name") || member(target, "targets") ||
-        member(target, "forEach") || member(target, "include"))
+        member(target, "forEach") || member(target, "include") ||
+        member(target, "modules"))
       failf("{}: forEach.target declares a single target with a derived name",
             file);
     for (size_t j = 0; j < files.count; ++j) {
@@ -500,6 +503,14 @@ static void add_matching_targets(Graph *g, Settings *declared, const char *file,
   }
 }
 
+static const char *module_file(const char *base, const char *directory,
+                               const char *from) {
+  if (!*directory)
+    failf("{}: modules contains an empty directory path; use '.' for the current "
+          "directory", from);
+  return path(path(base, directory), "module.json");
+}
+
 static void collect_manifest(Project *p, Settings *loaded, Strings *stack,
                              const char *file, const char *from) {
   if (contains(stack, file))
@@ -514,12 +525,16 @@ static void collect_manifest(Project *p, Settings *loaded, Strings *stack,
   const Json *data = load_json(file);
   put(loaded, file, data, from);
   unique(&p->inputs, file);
-  Strings includes = {0};
+  Strings includes = {0}, directories = {0};
   read_strings(&includes, member(data, "include"), file);
+  read_strings(&directories, member(data, "modules"), file);
   const char *dir = parent(file);
   push(stack, file);
   for (size_t i = 0; i < includes.count; ++i)
     collect_manifest(p, loaded, stack, path(dir, includes.items[i]), file);
+  for (size_t i = 0; i < directories.count; ++i)
+    collect_manifest(p, loaded, stack,
+                     module_file(dir, directories.items[i], file), file);
   --stack->count;
 }
 
@@ -528,13 +543,10 @@ void load_modules(Graph *g) {
   Settings loaded = {0};
   Strings directories = {0}, entries = {0}, stack = {0};
   read_strings(&directories, member(p->manifest, "modules"), "modules");
-  for (size_t i = 0; i < directories.count; ++i) {
-    const char *directory = directories.items[i];
-    if (!*directory)
-      fail("modules: empty directory path; use '.' for the project root");
-    const char *file = path(path(p->root, directory), "module.json");
-    collect_manifest(p, &loaded, &stack, file, "modules");
-  }
+  for (size_t i = 0; i < directories.count; ++i)
+    collect_manifest(p, &loaded, &stack,
+                     module_file(p->root, directories.items[i], "slate.json"),
+                     "modules");
   read_strings(&entries, member(p->manifest, "moduleFiles"), "moduleFiles");
   for (size_t i = 0; i < entries.count; ++i)
     collect_manifest(p, &loaded, &stack, path(p->root, entries.items[i]),
@@ -552,7 +564,7 @@ void load_modules(Graph *g) {
     if (member(data, "kind"))
       add_module(g, &declared, file, filename(parent(file)), data, NULL, true);
     else
-      check_fields(data, file, " $schema include targets forEach ");
+      check_fields(data, file, " $schema include modules targets forEach ");
     if (targets) {
       object(targets, file);
       for (size_t j = 0; j < json_object_size(targets); ++j) {

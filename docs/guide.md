@@ -177,10 +177,11 @@ with the same selectors and build directory to refresh Ninja's dependencies.
 
 List module directories in `modules`. Slate loads `module.json` from each
 directory. Use `moduleFiles` to list manifest paths with custom filenames.
-A module manifest can load
-its own child manifests with `"include": ["examples/module.json", "test/module.json"]`.
-Child paths resolve from the including manifest. A project with third-party
-targets can list `third_party` in `modules`.
+A module manifest can load its own child modules with
+`"modules": ["examples", "tests"]`. Use `include` for explicit paths such
+as `"include": ["examples/extra-targets.json"]`. Both resolve from the
+current manifest's directory. A project with third-party targets can list
+`third_party` in `modules`.
 
 Copy the sample [NativeToolchains.json](https://github.com/qigao/slates-build/blob/main/apps/presets/NativeToolchains.json)
 into the project's `presets/` directory. These presets give a native debug

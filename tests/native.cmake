@@ -578,12 +578,14 @@ file(WRITE "${WORK}/modules/math/module.json" "${math_module}")
 
 # Add a child manifest to an existing build and expand its file group.
 set(checks "${WORK}/modules/math/checks")
-file(MAKE_DIRECTORY "${checks}/directory_case.c")
+file(MAKE_DIRECTORY "${checks}/directory_case.c" "${checks}/nested")
 file(REMOVE "${checks}/new_case.c")
 set(group_out "${WORK}/out/file-group")
 run_at("${WORK}" "${BUILDER}" gen --build-dir "${group_out}")
-string(JSON math_with_checks SET "${math_module}" include
-  [=[["../io/io-targets.json", "checks/module.json"]]=])
+string(JSON math_with_empty_module SET "${math_module}" modules [=[[""]]=])
+file(WRITE "${WORK}/modules/math/module.json" "${math_with_empty_module}")
+reject("modules contains an empty directory path" "${BUILDER}" graph)
+string(JSON math_with_checks SET "${math_module}" modules [=[["checks"]]=])
 file(REMOVE "${checks}/module.json")
 file(WRITE "${WORK}/modules/math/module.json" "${math_with_checks}")
 reject("must be a module manifest file in the repository" "${BUILDER}" graph)
@@ -591,6 +593,7 @@ file(WRITE "${checks}/module.json" [=[{"include":["../module.json"]}]=])
 reject("module include cycle" "${BUILDER}" graph)
 file(WRITE "${checks}/module.json" [=[
 {
+  "modules": ["nested"],
   "forEach": [{
     "files": ["seed_case.c", "*_case.c"],
     "exclude": ["excluded_*.c"],
@@ -609,13 +612,20 @@ file(WRITE "${checks}/module.json" [=[
   }
 }
 ]=])
+file(WRITE "${checks}/nested/module.json" [=[{"kind":"header_only"}]=])
 file(WRITE "${checks}/seed_case.c" "int main(void) { return 0; }\n")
 file(WRITE "${checks}/excluded_case.c" "#error This fixture is excluded\n")
+string(JSON math_with_duplicate SET "${math_with_checks}" include 2
+  [=["checks/./module.json"]=])
+file(WRITE "${WORK}/modules/math/module.json" "${math_with_duplicate}")
+run_at("${WORK}" "${BUILDER}" graph --target fixture_seed_case)
+file(WRITE "${WORK}/modules/math/module.json" "${math_with_checks}")
 reject("unknown target .*release_only" "${BUILDER}" gen --target release_only)
 run_at("${group_out}" "${NINJA}")
 file(READ "${group_out}/build.ninja" manifest)
-if(NOT manifest MATCHES "module/fixture_seed_case")
-  message(FATAL_ERROR "Ninja did not regenerate after including a child manifest")
+if(NOT manifest MATCHES "module/fixture_seed_case" OR
+   NOT manifest MATCHES "module/nested")
+  message(FATAL_ERROR "Ninja did not regenerate with the nested module directories")
 endif()
 set(group_test_args --build-dir "${group_out}" --filter fixture.pattern.)
 run_at("${WORK}" "${BUILDER}" test ${group_test_args})
