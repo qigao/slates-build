@@ -1,10 +1,11 @@
 title: Slate
-description: Build, run, and test C and C++ projects with Slate and Ninja.
+description: Slate is a lightweight, JSON-based build tool for C and C++ projects, powered by Ninja.
 url: https://qigao.github.io
 baseurl: /slates-build
 repository: qigao/slates-build
 vscode_extension: https://marketplace.visualstudio.com/items?itemName=slates-build.slates-extension
 vscode_releases: https://github.com/qigao/slates-extension/releases/latest
+openidea_releases: https://github.com/qigao/slates-openidea/releases/latest
 markdown: kramdown
 plugins:
   - jekyll-relative-links
