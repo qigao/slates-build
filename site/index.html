@@ -5,8 +5,8 @@ title: Slate
 <div class="wrap">
   <section class="hero">
     <div>
-      <h1>Build with Slate.</h1>
-      <p>Define C and C++ targets in JSON. Slate resolves your toolchain, generates Ninja rules, and lets you build, run, test, and install from one CLI.</p>
+      <h1>Simple builds with JSON.</h1>
+      <p>Slate is a lightweight alternative to CMake for C and C++ projects. It turns JSON manifests into Ninja build files and provides one CLI to build, run, test, and install.</p>
       <div class="hero-actions">
         <a class="button primary" href="#quickstart">Quickstart</a>
         <a class="button secondary" href="https://github.com/qigao/slates-build/releases/latest">Download Slate</a>
@@ -39,20 +39,67 @@ slate run --root apps --target hello</code></pre>
     </div>
   </section>
 
-  <section class="paths" aria-labelledby="paths-title">
-    <h2 id="paths-title">Use Slate in your project</h2>
+  <section class="paths" id="external-tools" aria-labelledby="external-tools-title">
+    <h2 id="external-tools-title">Use external tools</h2>
     <div class="path-grid">
       <div>
-        <h3><a href="{{ '/guide.html' | relative_url }}#configure-a-project-and-register-a-test">Configure targets</a></h3>
-        <p>Define presets in <code>slate.json</code> and targets in <code>module.json</code>. Look up accepted fields in the <a href="{{ '/grammar.html' | relative_url }}">manifest reference</a>.</p>
+        <h3>CMake</h3>
+        <p>Keep existing CMake scripts. Register <code>cmake</code> under <code>tools</code> and call it with <code>-P</code> from a build task. <a href="{{ '/guide.html' | relative_url }}#declare-tasks-and-customize-rules">Declare a task</a>.</p>
       </div>
       <div>
-        <h3><a href="{{ '/guide.html' | relative_url }}#install-build-outputs">Test and install</a></h3>
-        <p>Run registered tests with <code>slate test</code> and stage build artifacts with <code>slate install</code>.</p>
+        <h3>vcpkg</h3>
+        <p>Consume packages already installed by vcpkg. Set <code>vcpkgRoot</code> and <code>vcpkgTriplet</code> for the selected toolchain, then declare a dependency with the vcpkg provider. <a href="{{ '/guide.html' | relative_url }}#use-an-installed-vcpkg-package">Import a package</a>.</p>
       </div>
       <div>
-        <h3><a href="{{ site.vscode_extension }}">Install the VS Code extension</a></h3>
-        <p>Select presets, browse targets, and launch builds and tests from VS Code. You can also <a href="{{ site.vscode_releases }}">download the VSIX</a>.</p>
+        <h3>Python</h3>
+        <p>Run Python scripts from <code>preTasks</code> to generate sources or fixtures. List the script and any data it reads as inputs and the generated files as outputs. <a href="https://github.com/qigao/salts-utils/blob/853421db84dc514fc43938cc1406580ff15cdd54/databind/compiler/tests/projection/fixtures/module.json#L511-L524">See the DataBind fixture</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="paths" id="best-practices" aria-labelledby="best-practices-title">
+    <h2 id="best-practices-title">Best practices from salts-utils</h2>
+    <div class="path-grid">
+      <div>
+        <h3>Keep project settings in <code>slate.json</code></h3>
+        <p>List module directories with <code>modules</code> and keep shared defaults in an inherited preset. SaltsUtils includes separate files for platform and tool definitions. <a href="https://github.com/qigao/salts-utils/blob/master/slate.json">View the root manifest</a>.</p>
+      </div>
+      <div>
+        <h3>Keep targets in <code>module.json</code></h3>
+        <p>Place each manifest beside its sources. The Jinja module includes its own test and benchmark manifests and separates consumer requirements from implementation settings with <code>public</code> and <code>private</code>. <a href="https://github.com/qigao/salts-utils/blob/master/jinja/module.json">View the Jinja manifest</a>.</p>
+      </div>
+      <div>
+        <h3>Track generated files</h3>
+        <p>Give each generated file one producer. The <code>jinja_codegen</code> target declares re2c and Lemon inputs and outputs, and <code>jinja_cmeta</code> lists the generated C files as sources. <a href="https://github.com/qigao/salts-utils/blob/853421db84dc514fc43938cc1406580ff15cdd54/jinja/module.json#L100">See the generator tasks</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="paths" id="coding-agents" aria-labelledby="coding-agents-title">
+    <h2 id="coding-agents-title">Manage large projects with coding agents</h2>
+    <div class="steps">
+      <div>
+        <h3>Understand and edit the build</h3>
+        <p>Codex and other coding agents can trace presets in <code>slate.json</code> and follow dependencies across <code>module.json</code> files. Use the guide for workflows and the reference for valid fields and values. <a href="{{ '/guide.html' | relative_url }}">Slate Guide</a> · <a href="{{ '/grammar.html' | relative_url }}">Manifest Reference</a></p>
+      </div>
+      <div>
+        <h3>Verify changes</h3>
+        <p>Agents can inspect the resolved dependency graph with <code>slate graph --format json</code>, check the selected toolchain with <code>slate doctor</code>, and confirm which tests are registered with <code>slate test --list</code>. <a href="{{ '/guide.html' | relative_url }}#diagnose-and-verify">Diagnose and verify</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="paths" id="editors" aria-labelledby="editors-title">
+    <h2 id="editors-title">Manage Slate projects in VS Code and OpenIDEA</h2>
+    <p>Open a workspace with <code>slate.json</code> and use the Slate sidebar to choose a preset, browse targets and source files, and build, run, or test your project.</p>
+    <div class="steps">
+      <div>
+        <h3>VS Code</h3>
+        <p>Install Slate Build and open <strong>Slate Targets</strong> from the Activity Bar. <a href="{{ site.vscode_extension }}">Install from the Marketplace</a> · <a href="{{ site.vscode_releases }}">Download the VSIX</a></p>
+      </div>
+      <div>
+        <h3>OpenIDEA</h3>
+        <p>Install the <code>.oiplugin</code> package via <strong>Settings → Plugins → Install Plugin from Disk</strong>, then open the Slate tool window. <a href="{{ site.openidea_releases }}">Download the OpenIDEA plugin</a>.</p>
       </div>
     </div>
   </section>
