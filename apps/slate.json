@@ -1,6 +1,7 @@
 {
     "include": ["presets/NativeToolchains.json", "presets/DefaultPreset.json"],
-    "env": ["VSDEVCMD_BAT"],
+    "libraries": ["libraries/http.json"],
+    "env": ["VSDEVCMD_BAT", "HTTP_SERVICES_ROOT", "SALTS_CNET_ROOT", "SALTS_BASE_ROOT", "SALTS_UTILS_ROOT"],
     "defaultPreset": "debug",
     "modules": ["hello"],
     "presets": {

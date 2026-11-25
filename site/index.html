@@ -13,9 +13,11 @@ title: Slate
       </div>
     </div>
     <figure class="terminal">
-      <figcaption>Sample project output</figcaption>
-      <pre><code><span class="prompt">$ </span>slate run --root apps --target hello
-<span class="terminal-output">Hello from slate.</span></code></pre>
+      <figcaption>Chttp client example</figcaption>
+      <pre><code><span class="prompt">$ </span>slate run --root apps --target hello -- \
+  tcp://127.0.0.1:8000 127.0.0.1:8000 /hello.c
+<span class="terminal-output">HTTP 200
+#include &lt;http_client/http.h&gt;</span></code></pre>
     </figure>
   </section>
 
@@ -29,12 +31,9 @@ title: Slate
 ninja --version</code></pre>
       </div>
       <div>
-        <h3>Build the sample</h3>
-        <p>From the source checkout, use <code>apps/</code> as the project root. On Windows, see <a href="{{ '/guide.html' | relative_url }}#select-a-platform-and-compiler">toolchain setup</a> for the LLVM-MinGW and MSVC presets.</p>
-        <pre class="snippet"><code>git clone https://github.com/qigao/slates-build.git
-cd slates-build
-slate doctor --root apps --target hello
-slate run --root apps --target hello</code></pre>
+        <h3>Run the HTTP client</h3>
+        <p>Build Slate from this checkout and configure the sample SDKs. Start a local server in one terminal, then run the client from another. <a href="{{ '/examples.html' | relative_url }}#make-an-http-request">Follow the HTTP walkthrough</a>.</p>
+        <pre class="snippet"><code>python -m http.server 8000 --bind 127.0.0.1 --directory apps/hello</code></pre>
       </div>
     </div>
   </section>

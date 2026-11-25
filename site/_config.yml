@@ -21,3 +21,8 @@ defaults:
     values:
       layout: document
       title: Slate grammar
+  - scope:
+      path: examples.md
+    values:
+      layout: document
+      title: Slate examples

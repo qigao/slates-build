@@ -1,6 +1,6 @@
 # Slate
 
-`slate` resolves shared platform and compiler templates into a Ninja build. The repository includes a small `hello` target and a CTest fixture covering a mixed C/C++ build.
+`slate` resolves shared platform and compiler templates into a Ninja build. The repository includes a `hello` HTTP client and a CTest fixture covering a mixed C/C++ build.
 
 Start with the [Slate documentation site](https://qigao.github.io/slates-build/).
 See the [guide](docs/guide.md) for generation, installation, and test workflows and the
@@ -52,8 +52,9 @@ includes them in the CMake installation.
 Put the bootstrapped executable on `PATH`. The sample project starts at
 `apps/slate.json` and keeps its presets in `apps/presets/`. Run the examples
 from the repository root with `--root apps`, or run them from inside `apps/`
-and let Slate discover the project. See [apps/.env.example](apps/.env.example)
-for the Windows preset variables. Set them in `apps/.env` or the process environment.
+and let Slate discover the project. Set the Chttp, SaltsCNet, SaltsBase, and
+SaltsUtils SDK paths and the required toolchain variables in `apps/.env` or
+the process environment. See [apps/.env.example](apps/.env.example).
 
 The macOS preset uses Apple Clang and `llvm-ar`. Add the LLVM installation's
 `bin` directory to `PATH` so Slate can find the response-file-capable archiver.
@@ -70,6 +71,8 @@ slate doctor --root apps
 slate build --root apps --target hello
 slate install --root apps --target hello --components runtime --prefix dist
 ```
+
+Run `hello` against a local HTTP server to see the response status and body. [HTTP client walkthrough](docs/examples.md#make-an-http-request)
 
 Use `--preset release` for optimized builds, `--compiler llvm-mingw` to constrain auto-selection on Windows, and `--build-dir <dir>` for a separate output directory. `build` generates the selected graph and runs Ninja, returning its exit status. Use `gen` to generate files for a separate Ninja invocation. `slate gen --root apps --explain hello` prints the sample target's effective settings. `slate graph --root apps --target hello --format dot` prints its declared dependencies.
 
@@ -154,6 +157,8 @@ It receives `os`, `driver`, `arch`, and `config` for each toolchain role.
 Project overrides use the same template lookup and regeneration mechanism.
 
 List module directories in `slate.json` under `modules`. Slate loads `module.json` from each directory. Use `moduleFiles` for custom manifest filenames. Each module can list its nested manifests in `include`, with paths relative to that manifest. For example, `"include": ["examples/module.json", "test/module.json"]` loads a module's examples and tests. An executable declares `test` to appear in `slate test`. A shared library can set `outputPrefix` to match its established filename.
+
+Use `--root` to select a `slate.json` project and `libraries` to share library manifests across projects. [Share a library manifest](docs/guide.md#share-a-library-manifest-across-projects)
 
 Use `"modules": ["third_party"]` in `slate.json` to load `third_party/module.json`. Target names are global. Reference a target named `fmt` as `"deps": ["fmt"]`. `slate graph` groups it under the `third_party` folder.
 

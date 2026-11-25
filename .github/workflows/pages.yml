@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'site/**'
+      - docs/examples.md
       - docs/guide.md
       - docs/grammar.md
       - .github/workflows/pages.yml
@@ -11,6 +12,7 @@ on:
     branches: [main]
     paths:
       - 'site/**'
+      - docs/examples.md
       - docs/guide.md
       - docs/grammar.md
       - .github/workflows/pages.yml
@@ -32,7 +34,7 @@ jobs:
       - name: Stage site and documentation
         run: |
           cp -R site _pages-source
-          cp docs/guide.md docs/grammar.md _pages-source/
+          cp docs/examples.md docs/guide.md docs/grammar.md _pages-source/
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:
@@ -41,6 +43,9 @@ jobs:
       - name: Verify built pages
         run: |
           test -s _site/index.html
+          grep -Fq '/slates-build/examples.html#make-an-http-request' _site/index.html
+          grep -Fq '<h1 id="slate-examples">Slate examples</h1>' _site/examples.html
+          grep -Fq '<article class="prose">' _site/examples.html
           grep -Fq '<h1 id="slate-guide">Slate guide</h1>' _site/guide.html
           grep -Fq '<h1 id="slate-grammar">Slate grammar</h1>' _site/grammar.html
           grep -Fq '<article class="prose">' _site/guide.html

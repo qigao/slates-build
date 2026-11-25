@@ -29,19 +29,30 @@ compiler selected by `slate gen` controls the project being generated.
 
 ## Generate and run a build
 
-From the generator repository root, build the `hello` target in `apps/`.
-The sample's configuration and presets live next to its modules.
+From the generator repository root, build the `hello` HTTP client in `apps/`.
+Set `HTTP_SERVICES_ROOT`, `SALTS_CNET_ROOT`, `SALTS_BASE_ROOT`, and
+`SALTS_UTILS_ROOT` to the installed SDKs for your target platform and compiler.
+Use `apps/.env` or the process environment. The client links through the
+reusable `libraries/http.json` manifest. The [HTTP client walkthrough](examples.md#make-an-http-request)
+shows the SDK configuration and explains each request argument.
 
 ```sh
 slate doctor --root apps --target hello
 slate graph --root apps --target hello --format dot
 slate build --root apps --preset debug --target hello --build-dir out/hello-debug
-slate run --root apps --preset debug --target hello --build-dir out/hello-debug
 ```
 
-Run `apps/out/hello-debug/bin/hello` on Unix or
-`.\apps\out\hello-debug\bin\hello.exe` in Windows PowerShell. For another
-project, run from any subdirectory of that project or pass `--root DIR`.
+For a local request, run `python -m http.server 8000 --bind 127.0.0.1` from a
+directory you want to serve. In a second terminal, run the client with the
+Chttp transport URI, HTTP authority, and request path.
+
+```sh
+slate run --root apps --preset debug --target hello --build-dir out/hello-debug -- tcp://127.0.0.1:8000 127.0.0.1:8000 /
+```
+
+You can pass the same three arguments directly to `apps/out/hello-debug/bin/hello`
+on Unix or `.\apps\out\hello-debug\bin\hello.exe` in Windows PowerShell. The
+client prints the response status and body. It returns success for a 2xx response.
 
 `build` generates the selected graph, runs Ninja in the build directory,
 and returns Ninja's exit status. `gen` writes the files for a separate
@@ -171,6 +182,13 @@ use their keys as global names. `slate graph` groups targets into nested
 folders based on their manifest directories.
 
 ### `slate.json`
+
+One repository can contain several independent `slate.json` projects. Slate
+uses the nearest `slate.json` at or above the working directory. From the
+repository root, select a project with `slate build --root apps/server` or
+`slate build --root apps/client`. Each project resolves its own presets, target
+names, and build directory. Use `modules` to build targets together in one
+project graph.
 
 After renaming an existing project config to `slate.json`, run `slate gen`
 with the same selectors and build directory to refresh Ninja's dependencies.
@@ -309,7 +327,8 @@ bundled `NativeToolchains.json` already declares `LLVM_MINGW_ROOT`.
 ```
 
 Include the fragment from `apps/slate.json` alongside the native platforms.
-From a Windows x64 host, generate and build the repository's hello target.
+From a Windows x64 host, generate and build the repository's hello target
+with the ARM64 builds of its SDKs.
 
 ```sh
 slate doctor --root apps --platform windows-arm64 --target hello
@@ -321,6 +340,32 @@ The resolver validates candidate tools before choosing one. A
 A configured `triple` sets the target for Clang-based drivers. Set
 `sysroot` when the target needs a separate SDK tree for headers and
 libraries. See [candidate selection](grammar.md#candidate-selection).
+
+## Share a library manifest across projects
+
+Put reusable library targets in a JSON file such as `http.json`.
+For example, `apps/server/slate.json` and `apps/client/slate.json` can both
+add these fields to load `libs/http.json` from the repository root.
+
+```json
+{
+  "libraries": ["../../libs/http.json"],
+  "env": ["HTTP_SERVICES_ROOT", "SALTS_CNET_ROOT", "SALTS_BASE_ROOT", "SALTS_UTILS_ROOT"]
+}
+```
+
+The sample [http.json](https://github.com/qigao/slates-build/blob/main/apps/libraries/http.json)
+defines `chttp_client` and its `salts_cnet` dependency. Set the variables to
+the installation prefixes for your toolchain and architecture. The targets
+select headers, link files, and runtime binaries for Windows MSVC, Windows
+GNU-style toolchains, Linux, and macOS. A consumer such as `hello` lists
+`"private": { "deps": ["chttp_client"] }` in its `module.json`. Use
+`public.deps` if the library is part of the consumer's public API.
+
+`libraries` entries resolve from their declaring preset fragment. A library
+manifest can also `include` other module manifests. Paths in each library
+manifest resolve from that file's directory. Slate adds the library targets
+to the current project and tracks the manifests for Ninja regeneration.
 
 ## Use an installed vcpkg package
 
@@ -424,7 +469,7 @@ Windows and Linux.
 | --- | --- |
 | No usable toolchain | Run `doctor` with the same filters and inspect the candidate rejections. Check compiler target architecture and tool paths. |
 | Toolchain identity changed | Generate into a fresh `--build-dir` using the intended SDK and toolchain. |
-| Target or test is missing | Check the target name, `modules`, `moduleFiles`, manifest `include`, `when`, test inclusion, and host/target role. List graph targets with `graph` and runnable tests with `slate test --list`. |
+| Target or test is missing | Check the target name, `modules`, `moduleFiles`, `libraries`, manifest `include`, `when`, test inclusion, and host/target role. List graph targets with `graph` and runnable tests with `slate test --list`. |
 | Generated source is missing | Match the producer's output to the consumer's source or input path. Inspect the graph for visibility failures or cycles. |
 | Unexpected compiler arguments | Read `compile_commands.json` for the structured compiler command. Use `ninja -C DIR -t commands TARGET` to inspect the invoked commands. |
 | Ninja keeps regenerating | Check which manifests, directories, environment values, or templates are changing. Run Ninja again after a stable build and check for `no work to do`. |

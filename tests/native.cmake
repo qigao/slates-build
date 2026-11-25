@@ -1082,3 +1082,66 @@ file(WRITE "${install_root}/modules/other/module.json" [=[
 ]=])
 reject("install destination escapes the prefix" "${BUILDER}" install
   --root "${install_root}" --target other)
+
+# Two projects, including a nested root, share one library manifest tree.
+set(workspace "${WORK}/library workspace")
+set(shared_libs "${workspace}/libs")
+set(outer_project "${workspace}/app")
+set(inner_project "${outer_project}/tools/app")
+file(MAKE_DIRECTORY "${shared_libs}/include")
+file(WRITE "${shared_libs}/shared.json" [[{"include":["http.json"]}]])
+set(shared_manifest [=[
+{
+  "name":"shared_http", "kind":"static", "sources":{"files":["http.c"]},
+  "public":{"requiredIncludeDirs":["include"]},
+  "variants":[
+    {"when":{"config":"debug"},"private":{"defines":{"VALUE":"41"}}},
+    {"when":{"config":"release"},"private":{"defines":{"VALUE":"42"}}}
+  ]
+}
+]=])
+file(WRITE "${shared_libs}/http.json" "${shared_manifest}")
+file(WRITE "${shared_libs}/include/http.h" "int shared_http(void);\n")
+file(WRITE "${shared_libs}/http.c" "#include <http.h>\nint shared_http(void) { return VALUE; }\n")
+foreach(project IN ITEMS "${outer_project}" "${inner_project}")
+  file(MAKE_DIRECTORY "${project}/config" "${project}/src")
+  file(COPY "${WORK}/config/native.json" DESTINATION "${project}/config")
+  file(COPY "${WORK}/.env" DESTINATION "${project}")
+  file(RELATIVE_PATH library "${project}" "${shared_libs}/shared.json")
+  if(project STREQUAL outer_project)
+    set(configuration debug)
+    set(expected 41)
+  else()
+    set(configuration release)
+    set(expected 42)
+  endif()
+  file(WRITE "${project}/config/libraries.json" "{\"libraries\":[\"../${library}\"]}")
+  file(WRITE "${project}/slate.json" "{
+    \"include\":[\"config/native.json\",\"config/libraries.json\"],
+    \"libraries\":[\"${library}\"],\"modules\":[\"src\"],
+    \"defaultPreset\":\"${configuration}\",
+    \"presets\":{\"${configuration}\":{\"config\":\"${configuration}\"}}}")
+  file(WRITE "${project}/src/module.json" [=[
+    {"name":"app","kind":"executable","sources":{"files":["main.c"]},
+     "private":{"deps":["shared_http"]}}
+  ]=])
+  file(WRITE "${project}/src/main.c"
+    "#include <http.h>\nint main(void) { return shared_http() != ${expected}; }\n")
+  run_at("${project}/src" "${BUILDER}" build --target app --build-dir build)
+  run_at("${project}/build/bin" "${project}/build/bin/app${exe}")
+endforeach()
+run_at("${inner_project}" "${BUILDER}" graph --root ../.. --format json)
+string(JSON explicit_preset GET "${run_output}" preset)
+string(JSON explicit_inputs GET "${run_output}" inputs)
+string(FIND "${explicit_inputs}" "/library workspace/libs/http.json" library_input)
+if(NOT explicit_preset STREQUAL "debug" OR library_input EQUAL -1)
+  message(FATAL_ERROR "explicit root or shared library input is missing from the graph")
+endif()
+string(REPLACE "\"42\"" "\"43\"" shared_manifest "${shared_manifest}")
+file(WRITE "${shared_libs}/http.json" "${shared_manifest}")
+file(WRITE "${inner_project}/src/main.c"
+  "#include <http.h>\nint main(void) { return shared_http() != 43; }\n")
+run_at("${inner_project}/build" "${NINJA}")
+run_at("${inner_project}/build/bin" "${inner_project}/build/bin/app${exe}")
+file(WRITE "${shared_libs}/shared.json" [[{"include":["shared.json"]}]])
+reject("module include cycle" "${BUILDER}" graph --root "${inner_project}")
