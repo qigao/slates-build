@@ -55,8 +55,10 @@ last value. `--explain` selects the explained target when the target list is
 empty. `graph` emits DOT by default.
 
 Without `--root`, the generator searches upward from the working directory
-for `slate.json`. Relative `--root` paths resolve against that working
-directory. Ninja's regeneration rules use internal commands and options.
+for the nearest `slate.json`. Each invocation uses one project root, even
+when a repository contains several `slate.json` files. Relative `--root`
+paths resolve against the working directory. Ninja's regeneration rules
+use internal commands and options.
 
 `build` uses the same target selection as `gen` and runs the generated
 default Ninja target. It returns Ninja's exit status.
@@ -147,6 +149,7 @@ PresetFragment = record {
   "defaultPreset"?: Identifier;
   "modules"?: list(Path);
   "moduleFiles"?: list(Path);
+  "libraries"?: list(Path);
   "platforms"?: map(Identifier, Platform);
   "toolchains"?: map(Identifier, Toolchain);
   "tools"?: map(Identifier, HostTool);
@@ -220,6 +223,11 @@ Defines = map(String, String | null) ;
   manifest paths and may be used alongside `modules`. Both lists resolve
   paths from the project root and require existing files inside it. The same
   manifest path is loaded once, including when listed in both fields.
+- `libraries` accepts explicit paths to reusable module manifests, for
+  example `http.json`. Paths resolve from the preset fragment
+  that declares them and may point outside the project root. Lists from
+  included fragments are combined. Library targets use the same target names
+  and dependency fields as other modules in the project.
 - The selected preset must resolve to a `config` after inheritance. Preset
   inheritance applies base settings first. Styles apply their base styles first.
   The module layers project options, preset styles, module styles, module
@@ -356,9 +364,12 @@ At the top level of a module manifest, `modules` lists directories and
 loads `module.json` from each directory. `include` lists explicit manifest
 paths. Both resolve from the current manifest's directory and can appear
 together. A manifest can consist of either field alone. Every resolved file
-must exist within the repository. Slate loads each resolved file once and
-rejects cycles across either field. Included files keep their own relative
-paths and folder in DOT. Ninja tracks every loaded manifest for regeneration.
+must exist. Manifests reached through the project's `modules` or `moduleFiles`
+must also stay within the project root. Paths reached through `libraries`
+can cross it. Slate loads each resolved file once and rejects include cycles.
+Included files keep their own relative paths. Graphs group targets outside
+the project root under `external`. Ninja tracks every loaded manifest for
+regeneration.
 
 The top-level manifest can combine a direct module with `targets` and
 `forEach`. The direct module uses its `name` or the manifest directory's

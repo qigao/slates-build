@@ -512,14 +512,15 @@ static const char *module_file(const char *base, const char *directory,
 }
 
 static void collect_manifest(Project *p, Settings *loaded, Strings *stack,
-                             const char *file, const char *from) {
+                             const char *file, const char *from, bool library) {
   if (contains(stack, file))
     failf("{}: module include cycle at '{}'", from, file);
   if (setting(loaded, file))
     return;
-  if (!inside(p->root, file) || !is_file(file))
-    failf("{}: '{}' must be a module manifest file in the repository", from,
-          file);
+  if ((!library && !inside(p->root, file)) || !is_file(file))
+    failf("{}: '{}' must be {}", from, file,
+          library ? "a library manifest file"
+                  : "a module manifest file in the repository");
   if (stack->count >= 128)
     failf("{}: module includes are too deep", file);
   const Json *data = load_json(file);
@@ -531,10 +532,12 @@ static void collect_manifest(Project *p, Settings *loaded, Strings *stack,
   const char *dir = parent(file);
   push(stack, file);
   for (size_t i = 0; i < includes.count; ++i)
-    collect_manifest(p, loaded, stack, path(dir, includes.items[i]), file);
+    collect_manifest(p, loaded, stack, path(dir, includes.items[i]), file,
+                     library);
   for (size_t i = 0; i < directories.count; ++i)
     collect_manifest(p, loaded, stack,
-                     module_file(dir, directories.items[i], file), file);
+                     module_file(dir, directories.items[i], file), file,
+                     library);
   --stack->count;
 }
 
@@ -546,11 +549,14 @@ void load_modules(Graph *g) {
   for (size_t i = 0; i < directories.count; ++i)
     collect_manifest(p, &loaded, &stack,
                      module_file(p->root, directories.items[i], "slate.json"),
-                     "modules");
+                     "modules", false);
   read_strings(&entries, member(p->manifest, "moduleFiles"), "moduleFiles");
   for (size_t i = 0; i < entries.count; ++i)
     collect_manifest(p, &loaded, &stack, path(p->root, entries.items[i]),
-                     "moduleFiles");
+                     "moduleFiles", false);
+  for (size_t i = 0; i < p->libraries.count; ++i)
+    collect_manifest(p, &loaded, &stack, p->libraries.items[i], "libraries",
+                     true);
   Strings manifests = {0};
   for (size_t i = 0; i < loaded.count; ++i)
     push(&manifests, loaded.items[i].name);

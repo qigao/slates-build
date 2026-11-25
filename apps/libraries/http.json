@@ -1,0 +1,135 @@
+{
+  "name": "salts_cnet",
+  "kind": "prebuilt",
+  "when": { "os": ["windows", "linux", "macos"] },
+  "public": {
+    "requiredIncludeDirs": [
+      "${envPath:SALTS_CNET_ROOT}/include",
+      "${envPath:SALTS_BASE_ROOT}/include"
+    ]
+  },
+  "variants": [
+    {
+      "when": { "os": "windows" },
+      "runtimeBins": [
+        "${envPath:SALTS_CNET_ROOT}/bin/cnet.dll",
+        "${envPath:SALTS_CNET_ROOT}/bin/salts_crypto.dll"
+      ]
+    },
+    {
+      "when": { "os": "windows", "driver": "msvc" },
+      "public": {
+        "libs": [
+          "${envPath:SALTS_CNET_ROOT}/lib/cnet.lib",
+          "${envPath:SALTS_BASE_ROOT}/lib/native_io.lib",
+          "${envPath:SALTS_BASE_ROOT}/lib/coroutine.lib",
+          "${envPath:SALTS_BASE_ROOT}/lib/salts.lib",
+          "ws2_32"
+        ]
+      },
+      "runtimeBins": ["${envPath:SALTS_BASE_ROOT}/bin/salts.dll"]
+    },
+    {
+      "when": { "os": "windows", "driver": ["llvm-mingw", "clang", "gcc"] },
+      "public": {
+        "libs": [
+          "${envPath:SALTS_CNET_ROOT}/lib/libcnet.dll.a",
+          "${envPath:SALTS_BASE_ROOT}/lib/libnative_io.a",
+          "${envPath:SALTS_BASE_ROOT}/lib/libcoroutine.a",
+          "${envPath:SALTS_BASE_ROOT}/lib/libsalts.dll.a",
+          "ws2_32"
+        ]
+      },
+      "runtimeBins": ["${envPath:SALTS_BASE_ROOT}/bin/libsalts.dll"]
+    },
+    {
+      "when": { "os": "linux" },
+      "public": {
+        "libs": [
+          "${envPath:SALTS_CNET_ROOT}/lib/libcnet.so",
+          "${envPath:SALTS_CNET_ROOT}/lib/libsalts_crypto.so",
+          "${envPath:SALTS_BASE_ROOT}/lib/libnative_io.a",
+          "${envPath:SALTS_BASE_ROOT}/lib/libcoroutine.a",
+          "${envPath:SALTS_BASE_ROOT}/lib/libsalts.so"
+        ],
+        "linkFlags": ["-pthread"]
+      },
+      "runtimeBins": [
+        "${envPath:SALTS_CNET_ROOT}/lib/libcnet.so",
+        "${envPath:SALTS_CNET_ROOT}/lib/libsalts_crypto.so",
+        "${envPath:SALTS_BASE_ROOT}/lib/libsalts.so"
+      ]
+    },
+    {
+      "when": { "os": "macos" },
+      "public": {
+        "libs": [
+          "${envPath:SALTS_CNET_ROOT}/lib/libcnet.dylib",
+          "${envPath:SALTS_CNET_ROOT}/lib/libsalts_crypto.dylib",
+          "${envPath:SALTS_BASE_ROOT}/lib/libnative_io.a",
+          "${envPath:SALTS_BASE_ROOT}/lib/libcoroutine.a",
+          "${envPath:SALTS_BASE_ROOT}/lib/libsalts.dylib"
+        ]
+      },
+      "runtimeBins": [
+        "${envPath:SALTS_CNET_ROOT}/lib/libcnet.dylib",
+        "${envPath:SALTS_CNET_ROOT}/lib/libsalts_crypto.dylib",
+        "${envPath:SALTS_BASE_ROOT}/lib/libsalts.dylib"
+      ]
+    }
+  ],
+  "targets": {
+    "chttp_client": {
+      "kind": "prebuilt",
+      "when": { "os": ["windows", "linux", "macos"] },
+      "public": {
+        "requiredIncludeDirs": ["${envPath:HTTP_SERVICES_ROOT}/include"],
+        "deps": ["salts_cnet"]
+      },
+      "variants": [
+        {
+          "when": { "os": "windows", "driver": "msvc" },
+          "public": { "libs": ["${envPath:HTTP_SERVICES_ROOT}/lib/chttp_client.lib"] },
+          "runtimeBins": [
+            "${envPath:HTTP_SERVICES_ROOT}/bin/chttp_client.dll",
+            "${envPath:SALTS_UTILS_ROOT}/bin/data_bind.dll"
+          ]
+        },
+        {
+          "when": { "os": "windows", "driver": ["llvm-mingw", "clang", "gcc"] },
+          "public": { "libs": ["${envPath:HTTP_SERVICES_ROOT}/lib/libchttp_client.dll.a"] },
+          "runtimeBins": [
+            "${envPath:HTTP_SERVICES_ROOT}/bin/libchttp_client.dll",
+            "${envPath:SALTS_UTILS_ROOT}/bin/libdata_bind.dll"
+          ]
+        },
+        {
+          "when": { "os": "linux" },
+          "public": {
+            "libs": [
+              "${envPath:HTTP_SERVICES_ROOT}/lib/libchttp_client.so",
+              "${envPath:SALTS_UTILS_ROOT}/lib/libdata_bind.so"
+            ]
+          },
+          "runtimeBins": [
+            "${envPath:HTTP_SERVICES_ROOT}/lib/libchttp_client.so",
+            "${envPath:SALTS_UTILS_ROOT}/lib/libdata_bind.so"
+          ]
+        },
+        {
+          "when": { "os": "macos" },
+          "public": {
+            "libs": [
+              "${envPath:HTTP_SERVICES_ROOT}/lib/libchttp_client.dylib",
+              "${envPath:SALTS_UTILS_ROOT}/lib/libdata_bind.dylib"
+            ]
+          },
+          "runtimeBins": [
+            "${envPath:HTTP_SERVICES_ROOT}/lib/libchttp_client.dylib",
+            "${envPath:SALTS_UTILS_ROOT}/lib/libdata_bind.dylib"
+          ]
+        }
+      ]
+    }
+  }
+}

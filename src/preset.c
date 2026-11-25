@@ -39,7 +39,7 @@ static void load_fragment(Project *p, const char *file, Strings *stack) {
   const Json *fragment = load_json(file);
   check_fields(fragment, file,
                " $schema include defaultPreset platforms toolchains presets "
-               "styles env modules moduleFiles tools ");
+               "styles env modules moduleFiles libraries tools ");
   Strings includes = {0};
   read_strings(&includes, member(fragment, "include"), file);
   for (size_t i = 0; i < includes.count; ++i)
@@ -51,6 +51,18 @@ static void load_fragment(Project *p, const char *file, Strings *stack) {
     const Json *value = json_object_value(fragment, i);
     if (same(key, "include") || same(key, "$schema"))
       continue;
+    if (same(key, "libraries")) {
+      const char *where = format_string("{}.libraries", file);
+      const char *directory = parent(file);
+      Strings libraries = {0};
+      read_strings(&libraries, value, where);
+      for (size_t j = 0; j < libraries.count; ++j) {
+        if (!*libraries.items[j])
+          failf("{}: expected a nonempty library manifest path", where);
+        unique(&p->libraries, path(directory, libraries.items[j]));
+      }
+      continue;
+    }
     if (same(key, "env")) {
       const char *where = format_string("{}.env", file);
       Strings names = {0};

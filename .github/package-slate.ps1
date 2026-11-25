@@ -36,6 +36,27 @@ try {
     Pop-Location
 }
 
+$project = Join-Path $relocated 'package-check'
+$presets = (New-Item -ItemType Directory -Path (Join-Path $project 'presets') -Force).FullName
+Copy-Item -LiteralPath 'apps/presets/NativeToolchains.json','apps/presets/DefaultPreset.json' -Destination $presets
+Set-Content -LiteralPath (Join-Path $project 'slate.json') -Encoding utf8 -Value @'
+{
+  "include": ["presets/NativeToolchains.json", "presets/DefaultPreset.json"],
+  "defaultPreset": "debug",
+  "modules": ["."]
+}
+'@
+Set-Content -LiteralPath (Join-Path $project 'module.json') -Encoding utf8 -Value @'
+{"kind":"executable","sources":{"files":["main.c"]}}
+'@
+Set-Content -LiteralPath (Join-Path $project 'main.c') -Encoding utf8 -Value @'
+#include <stdio.h>
+int main(void) {
+  puts("Hello from slate.");
+  return 0;
+}
+'@
+
 $sdkStage = (Resolve-Path (Join-Path $env:RUNNER_TEMP 'slate-sdks')).Path
 $hidden = @()
 try {
@@ -48,16 +69,16 @@ try {
     }
     Remove-Item -LiteralPath Env:LD_LIBRARY_PATH,Env:DYLD_LIBRARY_PATH -ErrorAction SilentlyContinue
     $binary = Join-Path $relocated "$name/bin/slate$suffix"
-    $arguments = @('run', '--root', 'apps', '--target', 'hello', '--build-dir', 'out/ci-package')
+    $arguments = @('run', '--root', $project, '--target', 'package-check', '--build-dir', 'out/ci-package')
     if ($IsWindows) {
         $env:LLVM_MINGW_ROOT = Split-Path (Split-Path $env:CC -Parent) -Parent
-        $arguments += '--preset', 'debug-mingw'
+        $arguments += '--compiler', 'llvm-mingw'
     }
     $result = & $binary @arguments
     $status = $LASTEXITCODE
     $result
     if ($status -ne 0 -or $result -notcontains 'Hello from slate.') {
-        throw "The relocated Slate archive could not build and run hello."
+        throw "The relocated Slate archive could not build and run the package check."
     }
 } finally {
     foreach ($sdk in $hidden) {

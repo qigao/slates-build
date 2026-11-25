@@ -437,8 +437,8 @@ int main(int argc, char **argv) {
   const bool install = same(action, "install");
   if (build || run || install || same(action, "gen")) {
     if (!graph.count)
-      failf("no module targets found under {}. Check modules, moduleFiles and "
-            "include",
+      failf("no module targets found under {}. Check modules, moduleFiles, "
+            "libraries and include",
             project.root);
     const Module *program = NULL;
     if (run) {

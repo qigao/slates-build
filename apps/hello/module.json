@@ -1,4 +1,12 @@
 {
   "kind": "exec",
-  "sources": { "files": ["hello.c"] }
+  "sources": { "files": ["hello.c"] },
+  "private": { "deps": ["chttp_client"] },
+  "variants": [
+    {
+      "when": { "os": "linux" },
+      // Find the SDK's transitive shared libraries in the staged lib directory.
+      "private": { "linkFlags": ["-Wl,--disable-new-dtags"] }
+    }
+  ]
 }

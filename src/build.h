@@ -108,6 +108,7 @@ typedef struct {
   Strings env_keys;
   Strings preset_styles;
   Strings inputs;
+  Strings libraries;
   Toolchain target;
   Toolchain host;
   bool native;

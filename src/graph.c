@@ -325,6 +325,8 @@ static const char *dot_escape(const char *value) {
 }
 
 static const char *module_folder(const Project *p, const Module *m) {
+  if (!inside(p->root, m->directory))
+    return "external";
   const char *directory = m->directory + strlen(p->root);
   return *directory == '/' ? directory + 1 : directory;
 }
