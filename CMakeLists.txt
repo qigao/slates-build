@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.27)
-project(slate VERSION 0.1.14 LANGUAGES C)
+project(slate VERSION 0.1.15 LANGUAGES C)
 
 find_package(
 	SaltsBase
