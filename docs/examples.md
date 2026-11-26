@@ -11,9 +11,10 @@ SDK. Each project has its own `slate.json` and build directory.
 
 ### Build and run the example
 
-Add the [Slate CLI built from this checkout](guide.md#bootstrap-the-generator)
-to the front of `PATH`. You also need Ninja and a native C toolchain. Run both
-commands from the repository root with the same toolchain preset.
+Add the `bin/` directory of [Slate v0.1.15 or later](https://github.com/qigao/slates-build/releases)
+to the front of `PATH`. You can also [build the CLI from source](guide.md#bootstrap-the-generator).
+You need Ninja and a native C toolchain. Run both commands from the repository
+root with the same toolchain preset.
 
 On Windows with LLVM-MinGW, set `LLVM_MINGW_ROOT` and add
 `--preset release-mingw` to both commands. For MSVC, set `VSDEVCMD_BAT` and
@@ -87,7 +88,7 @@ with the path to their own copy of the installed SDK.
 In VS Code, open the repository root. The workspace points the Slate extension
 to the CLI in `out/bootstrap`. On Windows, the **CMake: configure and build Slate**
 task builds that CLI. On other platforms, use CMake with `-B out/bootstrap`.
-In OpenIDEA, configure the plugin to use the Slate CLI built from this checkout.
+In OpenIDEA, configure the plugin to use Slate v0.1.15 or later.
 
 After installing the SDK, choose the consumer project in the Slate sidebar.
 Select the toolchain preset used to install the SDK, then click **Run** on

@@ -49,8 +49,8 @@ includes them in the CMake installation.
 
 ## Generate a build
 
-Put the Slate executable built from this checkout on `PATH`. The project at
-`apps/` exports the `stats` library. The independent project at `apps/consumer/`
+Put Slate v0.1.15 or newer on `PATH`. The project at `apps/` exports the
+`stats` library. The independent project at `apps/consumer/`
 reads the installed SDK through `libraries`. Set any toolchain variables for
 both projects using the process environment or each project's `.env`.
 [Sample environment file](apps/.env.example)
