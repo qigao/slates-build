@@ -5,22 +5,43 @@ title: Slate
 <div class="wrap">
   <section class="hero">
     <div>
-      <h1>Simple builds with JSON.</h1>
-      <p>Slate is a lightweight alternative to CMake for C and C++ projects. It turns JSON manifests into Ninja build files and provides one CLI to build, run, test, and install.</p>
+      <h1>Build C and C++ projects with JSON</h1>
+      <p>Slate uses simple JSON files for common CMake workflows. Define your targets and toolchains, then use one CLI to compile, link, run, test, and install with Ninja.</p>
       <div class="hero-actions">
         <a class="button primary" href="#quickstart">Quickstart</a>
         <a class="button secondary" href="https://github.com/qigao/slates-build/releases/latest">Download Slate</a>
       </div>
     </div>
     <figure class="terminal">
-      <figcaption>Run the independent SDK consumer</figcaption>
-      <pre><code><span class="prompt">$ </span>slate run --root apps/consumer --target stats-demo
-<span class="terminal-output">Mean = 4.0</span></code></pre>
+      <figcaption>module.json</figcaption>
+      <pre><code>{
+  "name": "hello",
+  "kind": "executable",
+  "sources": { "files": ["main.c"] }
+}</code></pre>
     </figure>
   </section>
 
-  <section class="quickstart" id="quickstart" aria-labelledby="quickstart-title">
-    <h2 id="quickstart-title">Export and consume an SDK</h2>
+  <section class="paths" id="quickstart" aria-labelledby="quickstart-title">
+    <h2 id="quickstart-title">Configure, build, and install</h2>
+    <div class="path-grid">
+      <div>
+        <h3>Configure targets and toolchains</h3>
+        <p>List modules and select compiler and platform presets in <code>slate.json</code>. In each <code>module.json</code>, declare an executable or library, its sources, and its dependencies. <a href="{{ '/guide.html' | relative_url }}#configure-a-project-and-register-a-test">Configure a project</a>.</p>
+      </div>
+      <div>
+        <h3>Build, run, and test</h3>
+        <p>Use <code>slate build</code> to compile and link, <code>slate run --target hello</code> to build and launch an executable, and <code>slate test</code> to run registered tests. <a href="{{ '/guide.html' | relative_url }}#generate-and-run-a-build">Generate and run a build</a>.</p>
+      </div>
+      <div>
+        <h3>Install build outputs</h3>
+        <p>Use <code>slate install --prefix dist</code> to build and install the selected binaries, libraries, headers, and resources. <a href="{{ '/guide.html' | relative_url }}#install-build-outputs">Install targets and components</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="paths" id="sdk-example" aria-labelledby="sdk-example-title">
+    <h2 id="sdk-example-title">Export and consume an SDK</h2>
     <p>Build a shared <code>stats</code> library from two modules, then use the installed SDK from a second project with its own <code>slate.json</code>.</p>
     <div class="steps">
       <div>
@@ -30,11 +51,11 @@ title: Slate
       </div>
       <div>
         <h3>Run <code>stats-demo</code></h3>
-        <p>The consumer adds the installed <code>module.json</code> to <code>libraries</code> and declares <code>stats</code> as a dependency. Slate reads the SDK metadata to compile, link, and stage the shared library.</p>
+        <p>The consumer imports <code>stats</code> through <code>libraries</code>. Slate uses the SDK metadata to build and run the program, which prints <code>Mean = 4.0</code>.</p>
         <pre class="snippet"><code>slate run --root apps/consumer --target stats-demo</code></pre>
       </div>
     </div>
-    <p class="quickstart-note">Run both commands from the repository root with <a href="https://github.com/qigao/slates-build/releases">Slate v0.1.15 or later</a>. <a href="{{ '/examples.html' | relative_url }}#export-and-consume-an-sdk">Follow the SDK walkthrough for toolchain setup and manifest details</a>.</p>
+    <p class="sdk-note">Run both commands from the repository root with <a href="https://github.com/qigao/slates-build/releases">Slate v0.1.15 or later</a>. <a href="{{ '/examples.html' | relative_url }}#export-and-consume-an-sdk">Follow the SDK walkthrough for toolchain setup and manifest details</a>.</p>
   </section>
 
   <section class="paths" id="external-tools" aria-labelledby="external-tools-title">
