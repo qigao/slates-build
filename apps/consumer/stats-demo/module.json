@@ -1,0 +1,5 @@
+{
+  "kind": "executable",
+  "sources": { "files": ["main.c"] },
+  "private": { "deps": ["stats"] }
+}

@@ -1,13 +1,13 @@
 # Slate
 
-`slate` resolves shared platform and compiler templates into a Ninja build. The repository includes a `hello` HTTP client and a CTest fixture covering a mixed C/C++ build.
+`slate` resolves shared platform and compiler templates into a Ninja build. The repository includes a multi-module library, an independent SDK consumer, and a CTest fixture covering a mixed C/C++ build.
 
 Start with the [Slate documentation site](https://qigao.github.io/slates-build/).
 See the [guide](docs/guide.md) for generation, installation, and test workflows and the
 [grammar](docs/grammar.md) for the CLI, presets, and module manifest syntax.
 
 The GitHub Pages workflow builds the site from [`site/`](site/) and renders
-the guide and grammar from `docs/`.
+the guide, examples, and grammar from `docs/`.
 
 Slate is licensed under [Apache-2.0](LICENSE). The CLI archives also include
 [third-party notices](THIRD_PARTY_NOTICES.md).
@@ -49,12 +49,11 @@ includes them in the CMake installation.
 
 ## Generate a build
 
-Put the bootstrapped executable on `PATH`. The sample project starts at
-`apps/slate.json` and keeps its presets in `apps/presets/`. Run the examples
-from the repository root with `--root apps`, or run them from inside `apps/`
-and let Slate discover the project. Set the Chttp, SaltsCNet, SaltsBase, and
-SaltsUtils SDK paths and the required toolchain variables in `apps/.env` or
-the process environment. See [apps/.env.example](apps/.env.example).
+Put the Slate executable built from this checkout on `PATH`. The project at
+`apps/` exports the `stats` library. The independent project at `apps/consumer/`
+reads the installed SDK through `libraries`. Set any toolchain variables for
+both projects using the process environment or each project's `.env`.
+[Sample environment file](apps/.env.example)
 
 The macOS preset uses Apple Clang and `llvm-ar`. Add the LLVM installation's
 `bin` directory to `PATH` so Slate can find the response-file-capable archiver.
@@ -64,20 +63,26 @@ The `env` list declares which variable names the project reads. Supply a nonempt
 The [Slate Build extension](https://marketplace.visualstudio.com/items?itemName=slates-build.slates-extension)
 adds a Slate icon to VS Code's Activity Bar and opens a target tree with Build,
 Test, and Run actions. A [VSIX download](https://github.com/qigao/slates-extension/releases/latest)
-is also available. Open `apps/` as a workspace folder to browse the sample project.
+is also available. Open the repository root in VS Code to browse both sample
+projects. The workspace uses the CLI built in `out/bootstrap`.
 
 ```sh
-slate doctor --root apps
-slate build --root apps --target hello
-slate install --root apps --target hello --components runtime --prefix dist
+slate install --root apps --target stats --components runtime,dev --prefix dist/stats-sdk
+slate run --root apps/consumer --target stats-demo
 ```
 
-Run `hello` against a local HTTP server to see the response status and body. [HTTP client walkthrough](docs/examples.md#make-an-http-request)
+The consumer prints `Mean = 4.0`. [SDK export and consumption walkthrough](docs/examples.md#export-and-consume-an-sdk)
 
-Use `--preset release` for optimized builds, `--compiler llvm-mingw` to constrain auto-selection on Windows, and `--build-dir <dir>` for a separate output directory. `build` generates the selected graph and runs Ninja, returning its exit status. Use `gen` to generate files for a separate Ninja invocation. `slate gen --root apps --explain hello` prints the sample target's effective settings. `slate graph --root apps --target hello --format dot` prints its declared dependencies.
+Both projects default to `release`. On Windows, use `--preset release-mingw`
+or `--preset release-msvc` on both commands to select the SDK toolchain.
+Use `--build-dir <dir>` for a separate output directory. `build` generates
+the selected graph and runs Ninja. Use `gen` for a separate Ninja invocation.
+`slate gen --root apps --explain stats` prints the producer's effective
+settings. `slate graph --root apps --target stats --format dot` shows its
+private dependency on `sum`.
 
 Use `slate tool list` to discover Ninja subtools. For an existing
-build, `slate tool query --build-dir DIR -- module/hello`
+build, `slate tool query --build-dir DIR -- module/stats`
 inspects the generated target. See the [subtool guide](docs/guide.md#run-ninja-subtools).
 
 `install` builds and copies the selected components. Generated builds expose

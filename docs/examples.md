@@ -1,128 +1,94 @@
 # Slate examples
 
-The repository's `hello` program makes a GET request with Chttp. Its
-`http.json` manifest also shows how multiple Slate projects can share a library.
+The `apps/` project builds a shared statistics library from two modules.
+The independent `apps/consumer/` project runs a program against the installed
+SDK. Each project has its own `slate.json` and build directory.
 
-## Make an HTTP request
+<!-- Preserve the example URL used by earlier editor plugin releases. -->
+<a id="make-an-http-request"></a>
 
-### Set up the SDKs
+## Export and consume an SDK
 
-From the repository checkout, [build the current Slate CLI](guide.md#bootstrap-the-generator)
-and put it on `PATH`. The sample uses the `libraries` manifest field. Install
-Python 3 to run the local server used below.
+### Build and run the example
 
-Set the paths in `apps/.env` or the process environment. Choose installed SDKs
-that match the target operating system, architecture, and compiler ABI. Replace
-these example paths with your SDK installation directories.
+Add the [Slate CLI built from this checkout](guide.md#bootstrap-the-generator)
+to the front of `PATH`. You also need Ninja and a native C toolchain. Run both
+commands from the repository root with the same toolchain preset.
 
-```dotenv
-HTTP_SERVICES_ROOT=/path/to/chttp
-SALTS_CNET_ROOT=/path/to/salts-cnet
-SALTS_BASE_ROOT=/path/to/salts-base
-SALTS_UTILS_ROOT=/path/to/salts-utils
-```
-
-On Windows, use `--preset debug-mingw` with `LLVM_MINGW_ROOT` set to your
-LLVM-MinGW directory, or `--preset debug-msvc` with `VSDEVCMD_BAT` set to
-your Visual Studio developer batch file. Linux and macOS can use the `debug`
-preset. [Sample environment file](https://github.com/qigao/slates-build/blob/main/apps/.env.example) ·
-[Toolchain setup](guide.md#select-a-platform-and-compiler)
-
-### Start the server and run the client
-
-From the repository root, serve `apps/hello` on loopback in one terminal.
+On Windows with LLVM-MinGW, set `LLVM_MINGW_ROOT` and add
+`--preset release-mingw` to both commands. For MSVC, set `VSDEVCMD_BAT` and
+add `--preset release-msvc` to both commands. Set the variable in the process
+environment or in both `apps/.env` and `apps/consumer/.env`.
+[Sample environment file](https://github.com/qigao/slates-build/blob/main/apps/.env.example)
 
 ```sh
-python -m http.server 8000 --bind 127.0.0.1 --directory apps/hello
+slate install --root apps --target stats --components runtime,dev --prefix dist/stats-sdk
+slate run --root apps/consumer --target stats-demo
 ```
 
-In another terminal at the repository root, build and run `hello`. Use your
-chosen preset if you need to select a specific toolchain.
+The program calls `stats_mean()` for the values 2, 4, and 6 and prints
+`Mean = 4.0`.
 
-```sh
-slate run --root apps --target hello -- tcp://127.0.0.1:8000 127.0.0.1:8000 /hello.c
-```
+### Follow the producer and consumer graphs
 
-`--root apps` selects `apps/slate.json`. The three values after `--` go to `hello`.
-
-| Argument | Meaning |
+| Project | Targets and dependencies |
 | --- | --- |
-| `tcp://127.0.0.1:8000` | Chttp transport URI for the local TCP connection. |
-| `127.0.0.1:8000` | HTTP authority sent in the `Host` header. |
-| `/hello.c` | Request path served from `apps/hello`. |
+| [`apps/slate.json`](https://github.com/qigao/slates-build/blob/main/apps/slate.json) | `stats` builds a shared library and privately links the static `sum` module. |
+| [`apps/consumer/slate.json`](https://github.com/qigao/slates-build/blob/main/apps/consumer/slate.json) | `stats-demo` depends on `stats`, which the project loads from the installed SDK. |
 
-The client prints `HTTP 200` followed by the contents of `hello.c`. Request
-`/missing` to see an `HTTP 404` response and a failing exit status.
+```sh
+slate graph --root apps --target stats --format dot
+slate graph --root apps/consumer --target stats-demo --format dot
+```
+
+### Define the SDK export
+
+The [`stats` module](https://github.com/qigao/slates-build/blob/main/apps/stats/module.json)
+exports version `1.0.0`. Its `install` block copies the public headers and the
+companion manifest alongside the generated package metadata.
+
+```json
+"install": {
+  "exportTarget": true,
+  "version": "1.0.0",
+  "headers": [{ "from": "include", "to": "include" }],
+  "assets": [{ "from": "sdk/module.json", "to": "share/slate/stats" }]
+}
+```
+
+The install command writes the headers, link library, runtime binary, and
+metadata under `apps/dist/stats-sdk/`.
+
+| File in `share/slate/stats/` | Role |
+| --- | --- |
+| `pkg.json` | Generated metadata with the version, platform, ABI, include directories, link inputs, and runtime files. |
+| `module.json` | The producer's [companion manifest](https://github.com/qigao/slates-build/blob/main/apps/stats/sdk/module.json), installed beside `pkg.json`. It declares `stats` as an external target and points `package.file` at `pkg.json`. |
+
+### Use the SDK from another project
+
+The consumer lists the installed companion in `libraries`. This path is
+relative to `apps/consumer/slate.json`.
+
+```json
+{
+  "libraries": ["../dist/stats-sdk/share/slate/stats/module.json"]
+}
+```
+
+The [`stats-demo` module](https://github.com/qigao/slates-build/blob/main/apps/consumer/stats-demo/module.json)
+declares the dependency with `"private": { "deps": ["stats"] }`.
+Slate obtains the include and link paths from `pkg.json` and stages the
+shared library for `stats-demo`. Other projects can use the same companion
+with the path to their own copy of the installed SDK.
+[Library manifest rules](guide.md#share-a-library-manifest-across-projects)
 
 ### Run from an editor
 
-Open the repository as a workspace and select the `apps` project in the Slate
-sidebar. Keep the local HTTP server running and select the preset that matches
-the installed SDKs.
+In VS Code, open the repository root. The workspace points the Slate extension
+to the CLI in `out/bootstrap`. On Windows, the **CMake: configure and build Slate**
+task builds that CLI. On other platforms, use CMake with `-B out/bootstrap`.
+In OpenIDEA, configure the plugin to use the Slate CLI built from this checkout.
 
-In VS Code with Slate Build 0.1.18 or later, add this to the workspace settings.
-
-```json
-{
-  "slate.runArguments": {
-    "apps/hello": ["tcp://127.0.0.1:8000", "127.0.0.1:8000", "/hello.c"]
-  }
-}
-```
-
-In OpenIDEA with Slate Build 0.1.9 or later, put this in `apps/slate.run.json`.
-
-```json
-{
-  "hello": ["tcp://127.0.0.1:8000", "127.0.0.1:8000", "/hello.c"]
-}
-```
-
-Click **Run** on the `hello` target in either editor.
-
-### Follow the dependency graph
-
-| File | Role |
-| --- | --- |
-| [`apps/slate.json`](https://github.com/qigao/slates-build/blob/main/apps/slate.json) | Lists the `hello` module and loads `libraries/http.json` directly. |
-| [`apps/hello/module.json`](https://github.com/qigao/slates-build/blob/main/apps/hello/module.json) | Builds `hello.c` and declares a private dependency on `chttp_client`. |
-| [`apps/libraries/http.json`](https://github.com/qigao/slates-build/blob/main/apps/libraries/http.json) | Declares `chttp_client` and its `salts_cnet` dependency. Platform variants select the link libraries and runtime files. |
-| [`apps/hello/hello.c`](https://github.com/qigao/slates-build/blob/main/apps/hello/hello.c) | Calls `chttp_get()` and prints the response status and body. |
-
-```sh
-slate graph --root apps --target hello --format dot
-```
-
-## Share a library between projects
-
-For two independent HTTP clients in one repository, give each its own
-`slate.json` and put a copy of the example `http.json` in a shared directory.
-
-```text
-apps/fetch/slate.json
-apps/health-check/slate.json
-libs/http.json
-```
-
-Add the same library path to each project manifest alongside its own presets
-and modules. Each project also declares the SDK environment variables it uses.
-The relative path is resolved from the manifest that declares it.
-
-```json
-{
-  "libraries": ["../../libs/http.json"],
-  "env": ["HTTP_SERVICES_ROOT", "SALTS_CNET_ROOT", "SALTS_BASE_ROOT", "SALTS_UTILS_ROOT"]
-}
-```
-
-A module can then declare `"private": { "deps": ["chttp_client"] }`. Build
-each project from the repository root with its own `--root` selection.
-
-```sh
-slate build --root apps/fetch
-slate build --root apps/health-check
-```
-
-Each invocation resolves the selected project's preset, targets, and build
-directory. From inside a project, Slate discovers the nearest `slate.json`.
-[Library manifest rules](guide.md#share-a-library-manifest-across-projects)
+After installing the SDK, choose the consumer project in the Slate sidebar.
+Select the toolchain preset used to install the SDK, then click **Run** on
+`stats-demo`.

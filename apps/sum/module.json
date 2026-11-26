@@ -1,0 +1,7 @@
+{
+  "kind": "static",
+  "visibility": ["stats"],
+  "sources": { "files": ["sum.c"] },
+  "public": { "includeDirs": ["include"] },
+  "options": { "symbolVisibility": "hidden" }
+}

@@ -1,0 +1,16 @@
+{
+  "kind": "shared",
+  "sources": { "files": ["stats.c"] },
+  "public": { "includeDirs": ["include"] },
+  "private": {
+    "deps": ["sum"],
+    "defines": { "STATS_BUILD": null }
+  },
+  "options": { "symbolVisibility": "hidden" },
+  "install": {
+    "exportTarget": true,
+    "version": "1.0.0",
+    "headers": [{ "from": "include", "to": "include" }],
+    "assets": [{ "from": "sdk/module.json", "to": "share/slate/stats" }]
+  }
+}

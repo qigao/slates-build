@@ -1,0 +1,5 @@
+{
+  "name": "stats",
+  "kind": "external",
+  "package": { "provider": "salts", "file": "pkg.json" }
+}

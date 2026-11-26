@@ -2,5 +2,6 @@
   "cmake.useCMakePresets": "never",
   "cmake.generator": "Ninja",
   "cmake.buildDirectory": "${workspaceFolder}/out/bootstrap",
-  "cmake.configureOnOpen": false
+  "cmake.configureOnOpen": false,
+  "slate.executable": "${workspaceFolder}/out/bootstrap/slate"
 }

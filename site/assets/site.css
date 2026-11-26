@@ -131,6 +131,7 @@ p { margin: 0 0 1rem; }
   border-top: 1px solid var(--line);
   padding-block: clamp(2rem, 5vw, 3.4rem);
 }
+.quickstart-note { margin: 1rem 0 0; }
 .steps, .path-grid { display: grid; gap: 1.25rem; }
 .steps { grid-template-columns: 1fr 1fr; }
 .path-grid { grid-template-columns: repeat(3, 1fr); }
@@ -167,6 +168,8 @@ pre {
   tab-size: 4;
 }
 pre code { font-size: inherit; overflow-wrap: normal; }
+.terminal pre, .quickstart .snippet { white-space: pre-wrap; }
+.terminal code, .quickstart .snippet code { overflow-wrap: anywhere; }
 .code-panel { min-width: 0; }
 .code-tools {
   display: flex;

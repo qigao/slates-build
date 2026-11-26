@@ -1,0 +1,25 @@
+{
+  "include": ["presets/NativeToolchains.json"],
+  "env": ["VSDEVCMD_BAT"],
+  "defaultPreset": "release",
+  "modules": ["stats-demo"],
+  "libraries": ["../dist/stats-sdk/share/slate/stats/module.json"],
+  "presets": {
+    "release": {
+      "config": "release",
+      "cStd": "c17",
+      "options": { "warnings": "strict", "optimization": "speed" }
+    },
+    "release-mingw": {
+      "inherits": "release",
+      "targetPlatform": "windows-x64",
+      "toolchain": "llvm-mingw-x64"
+    },
+    "release-msvc": {
+      "inherits": "release",
+      "targetPlatform": "windows-x64",
+      "toolchain": "msvc-win64",
+      "vsDevCmd": "${envPath:VSDEVCMD_BAT}"
+    }
+  }
+}

@@ -224,7 +224,7 @@ Defines = map(String, String | null) ;
   paths from the project root and require existing files inside it. The same
   manifest path is loaded once, including when listed in both fields.
 - `libraries` accepts explicit paths to reusable module manifests, for
-  example `http.json`. Paths resolve from the preset fragment
+  example an SDK's companion `module.json`. Paths resolve from the preset fragment
   that declares them and may point outside the project root. Lists from
   included fragments are combined. Library targets use the same target names
   and dependency fields as other modules in the project.

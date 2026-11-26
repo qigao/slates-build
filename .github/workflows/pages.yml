@@ -43,8 +43,12 @@ jobs:
       - name: Verify built pages
         run: |
           test -s _site/index.html
-          grep -Fq '/slates-build/examples.html#make-an-http-request' _site/index.html
+          grep -Fq '/slates-build/examples.html#export-and-consume-an-sdk' _site/index.html
+          grep -Fq 'slate install --root apps --target stats' _site/index.html
+          grep -Fq 'slate run --root apps/consumer --target stats-demo' _site/index.html
           grep -Fq '<h1 id="slate-examples">Slate examples</h1>' _site/examples.html
+          grep -Fq 'id="define-the-sdk-export"' _site/examples.html
+          grep -Fq 'id="use-the-sdk-from-another-project"' _site/examples.html
           grep -Fq '<article class="prose">' _site/examples.html
           grep -Fq '<h1 id="slate-guide">Slate guide</h1>' _site/guide.html
           grep -Fq '<h1 id="slate-grammar">Slate grammar</h1>' _site/grammar.html

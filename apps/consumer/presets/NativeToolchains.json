@@ -1,0 +1,55 @@
+{
+  "env": ["LLVM_MINGW_ROOT"],
+  "platforms": {
+    "windows-x64": {
+      "os": "windows", "arch": "x64",
+      "toolchains": [
+        { "id": "msvc-win64", "vcpkgTriplet": "x64-windows" },
+        { "id": "llvm-mingw-x64", "vcpkgTriplet": "qigao-x64-windows-llvm-mingw" }
+      ]
+    },
+    "linux-x64": {
+      "os": "linux", "arch": "x64",
+      "toolchains": [
+        { "id": "gcc-linux", "vcpkgTriplet": "x64-linux" },
+        { "id": "clang-linux", "vcpkgTriplet": "x64-linux" }
+      ]
+    },
+    "linux-arm64": {
+      "os": "linux", "arch": "arm64",
+      "toolchains": [
+        { "id": "gcc-linux", "vcpkgTriplet": "arm64-linux" },
+        { "id": "clang-linux", "vcpkgTriplet": "arm64-linux" }
+      ]
+    },
+    "macos-x64": {
+      "os": "macos", "arch": "x64",
+      "toolchains": [{ "id": "apple-clang", "vcpkgTriplet": "x64-osx" }]
+    },
+    "macos-arm64": {
+      "os": "macos", "arch": "arm64",
+      "toolchains": [{ "id": "apple-clang", "vcpkgTriplet": "arm64-osx" }]
+    }
+  },
+  "toolchains": {
+    "msvc-win64": {
+      "driver": "msvc", "cc": "cl.exe", "cxx": "cl.exe", "ar": "lib.exe", "ld": "link.exe"
+    },
+    "llvm-mingw-x64": {
+      "driver": "llvm-mingw",
+      "cc": "${env:LLVM_MINGW_ROOT}/bin/x86_64-w64-mingw32-clang.exe",
+      "cxx": "${env:LLVM_MINGW_ROOT}/bin/x86_64-w64-mingw32-clang++.exe",
+      "ar": "${env:LLVM_MINGW_ROOT}/bin/llvm-ar.exe",
+      "ld": "${env:LLVM_MINGW_ROOT}/bin/x86_64-w64-mingw32-clang++.exe"
+    },
+    "gcc-linux": {
+      "driver": "gcc", "cc": "gcc", "cxx": "g++", "ar": "gcc-ar", "ld": "g++"
+    },
+    "clang-linux": {
+      "driver": "clang", "cc": "clang", "cxx": "clang++", "ar": "llvm-ar", "ld": "clang++"
+    },
+    "apple-clang": {
+      "driver": "clang", "cc": "clang", "cxx": "clang++", "ar": "llvm-ar", "ld": "clang++"
+    }
+  }
+}
