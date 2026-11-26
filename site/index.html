@@ -13,29 +13,28 @@ title: Slate
       </div>
     </div>
     <figure class="terminal">
-      <figcaption>Chttp client example</figcaption>
-      <pre><code><span class="prompt">$ </span>slate run --root apps --target hello -- \
-  tcp://127.0.0.1:8000 127.0.0.1:8000 /hello.c
-<span class="terminal-output">HTTP 200
-#include &lt;http_client/http.h&gt;</span></code></pre>
+      <figcaption>Run the independent SDK consumer</figcaption>
+      <pre><code><span class="prompt">$ </span>slate run --root apps/consumer --target stats-demo
+<span class="terminal-output">Mean = 4.0</span></code></pre>
     </figure>
   </section>
 
   <section class="quickstart" id="quickstart" aria-labelledby="quickstart-title">
-    <h2 id="quickstart-title">Run your first build</h2>
+    <h2 id="quickstart-title">Export and consume an SDK</h2>
+    <p>Build a shared <code>stats</code> library from two modules, then use the installed SDK from a second project with its own <code>slate.json</code>.</p>
     <div class="steps">
       <div>
-        <h3>Install the CLI</h3>
-        <p>Get the <a href="https://github.com/qigao/slates-build/releases/latest">release archive for your host</a>. Keep the extracted bundle together and add its <code>bin/</code> directory to <code>PATH</code>. You also need Ninja 1.10 or later and a C/C++ toolchain.</p>
-        <pre class="snippet"><code>slate --version
-ninja --version</code></pre>
+        <h3>Install the <code>stats</code> SDK</h3>
+        <p>The <code>apps</code> project builds <code>stats</code> with a private <code>sum</code> dependency. The install command writes the library, header, and versioned JSON metadata to <code>apps/dist/stats-sdk</code>.</p>
+        <pre class="snippet"><code>slate install --root apps --target stats --components runtime,dev --prefix dist/stats-sdk</code></pre>
       </div>
       <div>
-        <h3>Run the HTTP client</h3>
-        <p>Build Slate from this checkout and configure the sample SDKs. Start a local server in one terminal, then run the client from another. <a href="{{ '/examples.html' | relative_url }}#make-an-http-request">Follow the HTTP walkthrough</a>.</p>
-        <pre class="snippet"><code>python -m http.server 8000 --bind 127.0.0.1 --directory apps/hello</code></pre>
+        <h3>Run <code>stats-demo</code></h3>
+        <p>The consumer adds the installed <code>module.json</code> to <code>libraries</code> and declares <code>stats</code> as a dependency. Slate reads the SDK metadata to compile, link, and stage the shared library.</p>
+        <pre class="snippet"><code>slate run --root apps/consumer --target stats-demo</code></pre>
       </div>
     </div>
+    <p class="quickstart-note">Run both commands from the repository root with the <a href="{{ '/guide.html' | relative_url }}#bootstrap-the-generator">Slate CLI built from the checkout</a>. <a href="{{ '/examples.html' | relative_url }}#export-and-consume-an-sdk">Follow the SDK walkthrough for toolchain setup and manifest details</a>.</p>
   </section>
 
   <section class="paths" id="external-tools" aria-labelledby="external-tools-title">

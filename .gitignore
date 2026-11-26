@@ -1,5 +1,6 @@
 /out/
 /apps/out/
+/apps/consumer/out/
 /apps/dist/
 .build
 build/

@@ -1,9 +1,8 @@
 {
     "include": ["presets/NativeToolchains.json", "presets/DefaultPreset.json"],
-    "libraries": ["libraries/http.json"],
-    "env": ["VSDEVCMD_BAT", "HTTP_SERVICES_ROOT", "SALTS_CNET_ROOT", "SALTS_BASE_ROOT", "SALTS_UTILS_ROOT"],
-    "defaultPreset": "debug",
-    "modules": ["hello"],
+    "env": ["VSDEVCMD_BAT"],
+    "defaultPreset": "release",
+    "modules": ["stats", "sum"],
     "presets": {
         "debug-msvc": {
             "inherits": "debug",
@@ -15,6 +14,17 @@
             "inherits": "debug",
             "targetPlatform": "windows-x64",
             "toolchain": "llvm-mingw-x64"
+        },
+        "release-mingw": {
+            "inherits": "release",
+            "targetPlatform": "windows-x64",
+            "toolchain": "llvm-mingw-x64"
+        },
+        "release-msvc": {
+            "inherits": "release",
+            "targetPlatform": "windows-x64",
+            "toolchain": "msvc-win64",
+            "vsDevCmd": "${envPath:VSDEVCMD_BAT}"
         }
     }
 }
