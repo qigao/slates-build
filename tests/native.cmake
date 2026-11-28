@@ -1155,21 +1155,36 @@ file(WRITE "${outer_project}/src/runner.c" [=[
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
+#ifdef _WIN32
+int wmain(int argc, wchar_t **argv) {
+#else
 int main(int argc, char **argv) {
+#endif
   if (argc != 2 && argc != 3) return 2;
   const char *setting = getenv("SLATE_ENV");
   if (!setting || strcmp(setting, "local")) return 4;
+#ifdef _WIN32
+  FILE *file = _wfopen(argv[1], L"rb");
+#else
   FILE *file = fopen(argv[1], "rb");
+#endif
   if (!file) return 3;
   if (fclose(file)) return 5;
+#ifdef _WIN32
+  if (argc == 3) return wcscmp(argv[2], L"qualification argument with spaces") ? 9 : 7;
+#else
   if (argc == 3) return strcmp(argv[2], "qualification argument with spaces") ? 9 : 7;
+#endif
   return 0;
 }
 ]=])
 file(WRITE "${outer_project}/src/fixture.c" "int main(void) { return 0; }\n")
 file(WRITE "${outer_project}/src/module.json" [=[
 {"targets":{
- "runner":{"kind":"executable","sources":{"files":["runner.c"]}},
+ "runner":{"kind":"executable","sources":{"files":["runner.c"]},
+   "variants":[{"when":{"os":"windows","driver":["clang","gcc","llvm-mingw"]},
+                "private":{"linkFlags":["-municode"]}}]},
  "fixture":{"kind":"executable","sources":{"files":["fixture.c"]}},
  "suite":{"kind":"header_only","test":{"tool":"runner","args":["${artifact:fixture}"],"environment":["SLATE_ENV=local"],"labels":["external-runner"]}},
  "program_suite":{"kind":"header_only","test":{"program":"${artifact:fixture}"}}
