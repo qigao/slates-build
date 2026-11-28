@@ -49,6 +49,8 @@ typedef struct {
   const char *install_prefix;
   const char *test_filter;
   const char *test_label;
+  const char *const *test_args;
+  int test_accept_exit;
   unsigned install_components;
   Strings targets;
   bool tests;
@@ -97,6 +99,8 @@ typedef struct {
   const char *name;
   const char *build_dir;
   const char *config;
+  const char *version;
+  const char *source_revision;
   const char *dot_env;
   Json *manifest;
   const Json *styles;
@@ -175,7 +179,9 @@ struct Module {
   const char *import_lib;
   const char *test_name;
   const char *test_program;
+  const char *test_tool;
   const char *test_directory;
+  const char *cuda_compiler;
   const Json *data;
   const Json *package;
   const Toolchain *tools;
@@ -207,6 +213,7 @@ struct Module {
   bool test_only;
   bool export_target;
   const char *export_version;
+  const char *cmake_target;
 };
 
 typedef struct BuildTemplate BuildTemplate;

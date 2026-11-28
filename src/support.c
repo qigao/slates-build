@@ -31,7 +31,13 @@
 typedef union Allocation Allocation;
 union Allocation {
   Allocation *next;
+#ifdef _WIN32
+  /* The prefix must preserve Windows heap alignment for process-owned values.
+     MSVC's C headers do not define the standard max_align_t typedef. */
+  _Alignas(MEMORY_ALLOCATION_ALIGNMENT) unsigned char alignment;
+#else
   max_align_t alignment;
+#endif
 };
 typedef struct JsonRoot {
   struct JsonRoot *next;

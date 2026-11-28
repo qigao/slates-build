@@ -26,3 +26,8 @@ defaults:
     values:
       layout: document
       title: Slate examples
+  - scope:
+      path: editors.md
+    values:
+      layout: document
+      title: Slate editor guide

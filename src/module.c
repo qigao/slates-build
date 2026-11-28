@@ -3,6 +3,52 @@
 #include <limits.h>
 #include <string.h>
 
+static const char *revision_command(Project *p, const char *git,
+                                     const char *const *args) {
+  const char *value = NULL;
+  const char *problem = probe_program(git, args, p->root, false, &value);
+  if (problem)
+    fail(problem);
+  return value;
+}
+
+static const char *source_revision(Project *p) {
+  if (p->source_revision)
+    return p->source_revision;
+  const char *declared = optional_string(get(&p->fields, "sourceRevision"),
+                                          "sourceRevision");
+  if (declared) {
+    const char *problem = NULL;
+    p->source_revision = expand_env(p, declared, "sourceRevision", &problem, true);
+    if (!p->source_revision)
+      fail(problem);
+  } else {
+    const char *git = find_program(p->root, "git");
+    if (!git)
+      fail("source revision requires Git or an explicit sourceRevision");
+    p->source_revision = revision_command(p, git,
+        (const char *const[]){"rev-parse", "--verify", "HEAD", NULL});
+    const char *head = revision_command(p, git,
+        (const char *const[]){"rev-parse", "--git-path", "HEAD", NULL});
+    unique(&p->inputs, path(p->root, head));
+    const char *ref = revision_command(p, git,
+        (const char *const[]){"rev-parse", "--symbolic-full-name", "HEAD", NULL});
+    const char *ref_path = path(p->root, revision_command(p, git,
+        (const char *const[]){"rev-parse", "--git-path", ref, NULL}));
+    if (is_file(ref_path))
+      unique(&p->inputs, ref_path);
+    const char *packed = path(p->root, revision_command(p, git,
+        (const char *const[]){"rev-parse", "--git-path", "packed-refs", NULL}));
+    if (is_file(packed))
+      unique(&p->inputs, packed);
+  }
+  size_t length = strlen(p->source_revision);
+  if ((length != 40 && length != 64) ||
+      p->source_revision[strspn(p->source_revision, "0123456789abcdefABCDEF")])
+    fail("sourceRevision must be a full hexadecimal Git object ID");
+  return p->source_revision;
+}
+
 const char *module_text(Project *p, const Module *m, const char *text) {
   const char *problem = NULL;
   const char *expanded = expand_env(p, text, m->manifest, &problem, true);
@@ -10,7 +56,10 @@ const char *module_text(Project *p, const Module *m, const char *text) {
     fail(problem);
   Text value = {0};
   for (const char *c = expanded; *c;) {
-    if (starts(c, "$root") && (!c[5] || c[5] == '/')) {
+    if (starts(c, "${source:revision}")) {
+      append(&value, source_revision(p));
+      c += strlen("${source:revision}");
+    } else if (starts(c, "$root") && (!c[5] || c[5] == '/')) {
       append(&value, p->root);
       c += 5;
     } else if (starts(c, "$moduledir") && (!c[10] || c[10] == '/')) {
@@ -214,7 +263,7 @@ static void apply_module_fields(Graph *g, Module *m, const Json *value,
   const Json *install = member(value, "install");
   if (install) {
     const char *where = format_string("{}.install", origin);
-    check_fields(install, where, " headers assets exportTarget version ");
+    check_fields(install, where, " headers assets exportTarget version cmakeTarget ");
     const Json *export_target = member(install, "exportTarget");
     if (export_target) {
       if (json_type(export_target) != JSON_BOOL)
@@ -226,6 +275,14 @@ static void apply_module_fields(Graph *g, Module *m, const Json *value,
       if (!identifier(version))
         failf("{}: invalid SDK version '{}'", where, version);
       m->export_version = version;
+    }
+    const char *cmake_target = optional_string(member(install, "cmakeTarget"), where);
+    if (cmake_target) {
+      const char *scope = strstr(cmake_target, "::");
+      if (!scope || !identifier(slice(cmake_target, (size_t)(scope - cmake_target))) ||
+          !identifier(scope + 2) || strchr(scope + 2, ':'))
+        failf("{}: cmakeTarget requires Package::Target", where);
+      m->cmake_target = cmake_target;
     }
     const char *fields[] = {"assets", "headers"};
     for (size_t i = 0; i < sizeof(fields) / sizeof(*fields); ++i) {
@@ -324,6 +381,7 @@ static void add_module(Graph *g, Settings *declared, const char *file,
   m->directory = parent(file);
   m->name = name;
   m->data = data;
+  m->export_version = p->version;
   m->test_only = test_only ? json_bool(test_only) : member(data, "test") != NULL;
   const char *type = string(member(data, "kind"), name);
   m->kind = kind(type, name);
@@ -343,7 +401,7 @@ static void add_module(Graph *g, Settings *declared, const char *file,
   const Json *test = p->tests ? member(data, "test") : NULL;
   if (test) {
     check_fields(test, name,
-                 " name namePrefix program args timeout workingDirectory "
+                 " name namePrefix program tool args timeout workingDirectory "
                  "environment labels ");
     m->test_name = optional_string(member(test, "name"), name);
     const char *test_prefix =
@@ -353,16 +411,39 @@ static void add_module(Graph *g, Settings *declared, const char *file,
     if (!m->test_name)
       m->test_name =
           test_prefix ? format_string("{}{}", test_prefix, name) : name;
-    if (m->kind != MODULE_EXECUTABLE || !*m->test_name ||
-        strpbrk(m->test_name, "\r\n"))
-      failf("{}: test requires an executable and a valid test.name", name);
     m->test_program = optional_string(member(test, "program"), name);
+    m->test_tool = optional_string(member(test, "tool"), name);
+    if (m->test_program && m->test_tool)
+      failf("{}: test.program and test.tool are mutually exclusive", name);
+    if ((m->kind != MODULE_EXECUTABLE &&
+         (m->kind != MODULE_HEADER_ONLY || (!m->test_program && !m->test_tool))) ||
+        !*m->test_name ||
+        strpbrk(m->test_name, "\r\n"))
+      failf("{}: test requires an executable or a header_only runner with "
+            "test.program/test.tool and a valid test.name", name);
     read_strings(&m->test_args, member(test, "args"), name);
     const char *directory =
         optional_string(member(test, "workingDirectory"), name);
     if (directory)
       m->test_directory = module_path(p, m, directory);
-    read_strings(&m->test_environment, member(test, "environment"), name);
+    Strings environment = {0};
+    read_strings(&environment, get(&p->fields, "testEnvironment"), name);
+    read_strings(&environment, member(test, "environment"), name);
+    for (size_t i = 0; i < environment.count; ++i) {
+      const char *entry = environment.items[i];
+      const char *equal = strchr(entry, '=');
+      if (!equal || equal == entry)
+        failf("{}: test environment requires NAME=value", name);
+      size_t key_length = (size_t)(equal - entry) + 1;
+      size_t j = 0;
+      while (j < m->test_environment.count &&
+             strncmp(m->test_environment.items[j], entry, key_length))
+        ++j;
+      if (j == m->test_environment.count)
+        push(&m->test_environment, entry);
+      else
+        m->test_environment.items[j] = entry;
+    }
     read_strings(&m->test_labels, member(test, "labels"), name);
     const Json *timeout = member(test, "timeout");
     if (timeout) {
@@ -412,6 +493,8 @@ static void add_module(Graph *g, Settings *declared, const char *file,
     }
   }
   m->declared_public_includes = m->public_usage.includes;
+  if (m->cmake_target && !m->export_target)
+    failf("{}: cmakeTarget requires exportTarget", m->name);
   if ((m->package && m->kind != MODULE_PREBUILT) ||
       (!m->package && same(type, "external")))
     failf("{}: external requires a package; package requires external or prebuilt",

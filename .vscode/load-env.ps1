@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $dotenv = Join-Path $root '.env'
 $pathKeys = @('SALTS_BASE_ROOT', 'SALTS_UTILS_ROOT', 'CMETA_ROOT', 'LLVM_MINGW_ROOT')
-$keys = $pathKeys + 'CMAKE_BUILD_PARALLEL_LEVEL'
+$keys = $pathKeys + @('SALTS_BASE_VERSION', 'SALTS_UTILS_VERSION', 'CMETA_VERSION', 'CMAKE_BUILD_PARALLEL_LEVEL')
 $assignment = '^\s*(' + ($keys -join '|') + ')\s*=(.*)$'
 $fileValues = @{}
 

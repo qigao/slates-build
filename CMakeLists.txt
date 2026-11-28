@@ -1,9 +1,15 @@
 cmake_minimum_required(VERSION 3.27)
-project(slate VERSION 0.1.15 LANGUAGES C)
+project(slate VERSION 0.1.16 LANGUAGES C)
+
+foreach(sdk_version IN ITEMS SALTS_BASE_VERSION SALTS_UTILS_VERSION CMETA_VERSION)
+	if(NOT "$ENV{${sdk_version}}" MATCHES "^[0-9]+[.][0-9]+[.][0-9]+$")
+		message(FATAL_ERROR "${sdk_version} must select an exact SDK release without v")
+	endif()
+endforeach()
 
 find_package(
 	SaltsBase
-	0.1.8
+	"$ENV{SALTS_BASE_VERSION}"
 	EXACT CONFIG REQUIRED
 	HINTS "$ENV{SALTS_BASE_ROOT}"
 )
@@ -24,14 +30,14 @@ if(WIN32 AND (MSVC OR CMAKE_C_SIMULATE_ID STREQUAL "MSVC"))
 endif()
 find_package(
 	SaltsUtils
-	0.1.6
+	"$ENV{SALTS_UTILS_VERSION}"
 	EXACT CONFIG REQUIRED
 	HINTS "$ENV{SALTS_UTILS_ROOT}"
 )
 # The installed CMeta package locates its matching SaltsBase through this variable.
 set(saved_salts_base_root "$ENV{SALTS_BASE_ROOT}")
 set(ENV{SALTS_BASE_ROOT} "${SaltsBase_DIR}")
-find_package(CMeta 0.1.8 EXACT CONFIG REQUIRED HINTS "$ENV{CMETA_ROOT}")
+find_package(CMeta "$ENV{CMETA_VERSION}" EXACT CONFIG REQUIRED HINTS "$ENV{CMETA_ROOT}")
 set(ENV{SALTS_BASE_ROOT} "${saved_salts_base_root}")
 
 include(GNUInstallDirs)
@@ -84,7 +90,7 @@ endif()
 set_target_properties("${PROJECT_NAME}" PROPERTIES C_EXTENSIONS OFF)
 
 if(MSVC)
-	target_compile_options("${PROJECT_NAME}" PRIVATE /W4)
+	target_compile_options("${PROJECT_NAME}" PRIVATE /W4 /utf-8 /Zc:preprocessor)
 else()
 	target_compile_options("${PROJECT_NAME}" PRIVATE -Wall -Wextra -Wpedantic)
 endif()
@@ -158,5 +164,14 @@ if(BUILD_TESTING)
 				"-DWORK=${CMAKE_CURRENT_BINARY_DIR}/fixture 中文 with spaces" -P
 				"${CMAKE_CURRENT_SOURCE_DIR}/tests/native.cmake"
 		)
+	endif()
+	if(DEFINED SLATE_CUDA_COMPILER)
+		find_program(NINJA_EXECUTABLE ninja REQUIRED)
+		add_test(NAME cuda-build
+			COMMAND "${CMAKE_COMMAND}" "-DBUILDER=$<TARGET_FILE:${PROJECT_NAME}>"
+				"-DNVCC=${SLATE_CUDA_COMPILER}" "-DVSDEVCMD=${SLATE_CUDA_VSDEVCMD}"
+				"-DCC=${CMAKE_C_COMPILER}" "-DHOST_ARCH=${CMAKE_HOST_SYSTEM_PROCESSOR}"
+				"-DWORK=${CMAKE_CURRENT_BINARY_DIR}/cuda fixture with spaces"
+				-P "${CMAKE_CURRENT_SOURCE_DIR}/tests/cuda.cmake")
 	endif()
 endif()

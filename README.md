@@ -7,7 +7,7 @@ See the [guide](docs/guide.md) for generation, installation, and test workflows 
 [grammar](docs/grammar.md) for the CLI, presets, and module manifest syntax.
 
 The GitHub Pages workflow builds the site from [`site/`](site/) and renders
-the guide, examples, and grammar from `docs/`.
+the guide, examples, reference, and [editor guide](docs/editors.md) from `docs/`.
 
 Slate is licensed under [Apache-2.0](LICENSE). The CLI archives also include
 [third-party notices](THIRD_PARTY_NOTICES.md).
@@ -23,7 +23,9 @@ Use CMake 3.27 or later, Ninja, a C11 compiler, and ABI-matched SDKs. Bootstrap 
 On Windows with LLVM-MinGW SDKs, set `SALTS_BASE_ROOT`, `SALTS_UTILS_ROOT`,
 `CMETA_ROOT`, and `LLVM_MINGW_ROOT` in the repository's `.env`. In VS Code,
 run **CMake: configure and build Slate**. Both steps load the bootstrap
-environment. Configure runs a fresh Ninja configure in `out/bootstrap`, and
+environment. Also set `SALTS_BASE_VERSION`, `SALTS_UTILS_VERSION`, and
+`CMETA_VERSION` to the exact SDK release numbers, without `v`; see
+[`.env.example`](.env.example). Configure runs a fresh Ninja configure in `out/bootstrap`, and
 build honors `CMAKE_BUILD_PARALLEL_LEVEL` when supplied. Relative paths resolve
 from the repository root, and parent environment values take precedence over
 `.env`.
@@ -42,6 +44,7 @@ ctest --test-dir out/bootstrap --output-on-failure
 For direct CMake configuration, supply the SDK roots through the parent
 environment or set `SaltsBase_ROOT`, `SaltsUtils_ROOT`, and `CMeta_ROOT`
 with `-D`. Select a compiler that matches the SDK ABI.
+The three SDK version variables must also be present in the environment.
 
 Use a fresh build directory when switching the compiler or installed SDKs.
 The Windows bootstrap places the SDK runtime DLLs next to the executable and
@@ -65,6 +68,9 @@ adds a Slate icon to VS Code's Activity Bar and opens a target tree with Build,
 Test, and Run actions. A [VSIX download](https://github.com/qigao/slates-extension/releases/latest)
 is also available. Open the repository root in VS Code to browse both sample
 projects. The workspace uses the CLI built in `out/bootstrap`.
+The [OpenIDEA plugin](https://github.com/qigao/slates-openidea) uses the same
+workspace hierarchy and tree icons. Each project keeps its own **Targets**
+branch, preset, and command root. [Editor setup and run arguments](docs/editors.md).
 
 ```sh
 slate install --root apps --target stats --components runtime,dev --prefix dist/stats-sdk
@@ -165,7 +171,7 @@ List module directories in `slate.json` under `modules`. Slate loads `module.jso
 
 Use `--root` to select a `slate.json` project and `libraries` to share library manifests across projects. [Share a library manifest](docs/guide.md#share-a-library-manifest-across-projects)
 
-Use `"modules": ["third_party"]` in `slate.json` to load `third_party/module.json`. Target names are global. Reference a target named `fmt` as `"deps": ["fmt"]`. `slate graph` groups it under the `third_party` folder.
+Use `"modules": ["third_party"]` in `slate.json` to load `third_party/module.json`. Target names are global within that project's graph. Reference a target named `fmt` as `"deps": ["fmt"]`. `slate graph` groups it under the `third_party` folder.
 
 Library modules use `kind` values `static`, `shared`, and `prebuilt`.
 The original names ending in `_lib` are accepted as aliases.
@@ -208,4 +214,26 @@ slate test --preset debug --filter suite.
 
 Native builds include test targets by default. Cross builds can include them with `--tests` or `"tests": true` in a preset. `slate test` runs host-role tests when cross-compiling. Use `testOnly: true` for a test helper target, or `testOnly: false` for a regular tool that also declares a test. Host tool paths can use `${host:rid}` (such as `windows-x64`) and `${host:exe}` (the host executable suffix) in the manifest or an environment default.
 
-This implementation covers the native preset resolver, module and task graphs, and Ninja generation. The RFC also describes future ACE providers, vcpkg package extraction, SDK export, and Toad/Jinja tasks. [Design](design.md)
+## Maintain the documentation website
+
+The [GitHub Pages workflow](.github/workflows/pages.yml) stages `site/`, copies
+the contents of `docs/` into that staging directory, and builds the site with
+Jekyll. Edit the Markdown source for a documentation page; there is no separate
+HTML copy to maintain.
+
+| Website page | Source |
+| --- | --- |
+| Homepage | [`site/index.html`](site/index.html) |
+| Guide | [`docs/guide.md`](docs/guide.md) |
+| Examples | [`docs/examples.md`](docs/examples.md) |
+| Manifest reference | [`docs/grammar.md`](docs/grammar.md) |
+| Editor guide | [`docs/editors.md`](docs/editors.md) |
+
+Shared layouts live in `site/_layouts/`; navigation and page defaults live in
+those layouts and `site/_config.yml`. Plugin READMEs are maintained in their own
+repositories and are not imported automatically. When adding a documentation
+page, set its layout and title in the site configuration and link it from the
+relevant guide or navigation.
+
+Pull requests build and verify the generated pages. Updates to `main` deploy
+through GitHub Pages after the site build succeeds.

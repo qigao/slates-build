@@ -3,6 +3,11 @@ ninja_required_version = 1.10
 pool link_pool
   depth = {{ link_pool_depth }}
 
+{% if compile_pool_depth %}
+pool compile_pool
+  depth = {{ compile_pool_depth }}
+{% endif %}
+
 {% for rule in rules %}
 {% if rule.kind != "phony" %}
 rule {{ rule.name }}
@@ -12,6 +17,9 @@ rule {{ rule.name }}
   depfile = $dep
 {% elif rule.kind == "compileMsvc" %}
   deps = msvc
+{% endif %}
+{% if compile_pool_depth and (rule.kind == "compileGnu" or rule.kind == "compileMsvc") %}
+  pool = compile_pool
 {% endif %}
 {% if rule.kind == "compileGnu" or rule.kind == "compileMsvc" or rule.kind == "archive" or rule.kind == "link" %}
   rspfile = $response

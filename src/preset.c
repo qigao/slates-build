@@ -39,7 +39,7 @@ static void load_fragment(Project *p, const char *file, Strings *stack) {
   const Json *fragment = load_json(file);
   check_fields(fragment, file,
                " $schema include defaultPreset platforms toolchains presets "
-               "styles env modules moduleFiles libraries tools ");
+               "styles env modules moduleFiles libraries tools version ");
   Strings includes = {0};
   read_strings(&includes, member(fragment, "include"), file);
   for (size_t i = 0; i < includes.count; ++i)
@@ -76,7 +76,7 @@ static void load_fragment(Project *p, const char *file, Strings *stack) {
       }
       continue;
     }
-    if (same(key, "defaultPreset") || same(key, "modules") ||
+    if (same(key, "defaultPreset") || same(key, "version") || same(key, "modules") ||
         same(key, "moduleFiles")) {
       if (member(p->manifest, key))
         failf("{}: duplicate {}", file, key);
@@ -235,8 +235,8 @@ static void apply_preset(Project *p, const Json *presets, const char *name,
   check_fields(
       preset, origin,
       " inherits config targetPlatform toolchain hostToolchain vsDevCmd "
-      "buildDir cStd cxxStd templateDir linkPoolDepth options defines styles "
-      "packages flags tests ");
+      "buildDir cStd cxxStd templateDir linkPoolDepth compilePoolDepth sourceRevision options defines styles "
+      "packages flags tests testEnvironment ");
   const char *base = optional_string(member(preset, "inherits"), origin);
   if (base) {
     push(stack, name);
@@ -560,6 +560,9 @@ Project load_project(const Request *request) {
   p.manifest = own(json_create_object());
   Strings stack = {0};
   load_fragment(&p, path(p.root, project_manifest), &stack);
+  p.version = optional_string(member(p.manifest, "version"), project_manifest);
+  if (p.version && !identifier(p.version))
+    fail("project version must be a nonempty version identifier");
   p.dot_env = path(p.root, ".env");
   load_environment(&p);
   p.name = request->preset

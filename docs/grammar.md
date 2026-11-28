@@ -19,7 +19,7 @@ Help        = "--help" | "help" ;
 Generate    = "gen", { Common | Arg("--explain", TargetName) } ;
 Build       = "build", { Common | Arg("--explain", TargetName) } ;
 Run         = "run", { Common }, [ "--", { ShellArgument } ] ;
-Test        = "test", { Common | "--list" | Arg("--filter", String) | Arg("--label", String) } ;
+Test        = "test", { Common | "--list" | Arg("--filter", String) | Arg("--label", String) | Arg("--accept-exit", Number) }, [ "--", { String } ] ;
 Install     = "install", { Common | Arg("--prefix", Path) | Arg("--components", Components) } ;
 Components  = Component, { ",", Component } ;
 Component   = "runtime" | "dev" | "symbols" ;
@@ -71,7 +71,7 @@ otherwise.
 
 `graph --format json` writes the resolved `preset`, `platform`, `compiler`,
 `buildDirectory`, graph `inputs`, and `targets`. Each target has `name`,
-`folder`, `manifest`, `kind`, `runnable`, `test`, and lists `sources`, `headers`,
+`folder`, `manifest`, `kind`, `runnable`, `test`, `testName`, and lists `sources`, `headers`,
 `taskInputs`, `taskOutputs`, `publicDeps`, `privateDeps`, `runtimeDeps`. `sources`
 contains the resolved absolute source paths for the target. `headers` contains absolute paths from
 `install.headers`, headers next to selected sources, headers in the target's
@@ -80,6 +80,11 @@ target's `preTasks`. `taskInputs` and `taskOutputs` list the resolved file paths
 for tasks owned by the target. A target filter limits the result to the selected
 graph.
 Without a filter, the JSON includes every admitted target.
+`testName` is the declared test name or `null`. `runnable` identifies
+host-runnable executable targets; `test` identifies host-runnable declared
+tests, including external runners that have no executable artifact of their
+own. Editors use `folder` for the module hierarchy and keep the containing
+project's command root separate. See the [editor guide](editors.md).
 
 `test` enables test targets and applies the same project and target selectors
 as `build`. `--filter` matches a case-sensitive substring of the test name.
@@ -147,6 +152,7 @@ PresetFragment = record {
   "$schema"?: String;
   "include"?: list(Path);
   "defaultPreset"?: Identifier;
+  "version"?: Identifier;
   "modules"?: list(Path);
   "moduleFiles"?: list(Path);
   "libraries"?: list(Path);
@@ -191,6 +197,9 @@ Preset = record {
   "buildDir"?: Path; "templateDir"?: Path;
   "cStd"?: String; "cxxStd"?: String;
   "linkPoolDepth"?: Number;
+  "compilePoolDepth"?: Number;
+  "sourceRevision"?: String;
+  "testEnvironment"?: list(String);
   "options"?: Options;
   "defines"?: Defines;
   "styles"?: list(Identifier);
@@ -406,6 +415,7 @@ selected source list. `header_only` and `prebuilt` have no compiled sources.
 InstallMappings = record {
   "headers"?: list(InstallMapping); "assets"?: list(InstallMapping);
   "exportTarget"?: Boolean; "version"?: Identifier;
+  "cmakeTarget"?: String;
 };
 InstallMapping = record { "from": Path; "to": String; };
 ```
@@ -422,13 +432,19 @@ the same destination fail before copying begins.
 
 `exportTarget: true` includes relocatable metadata with the `dev` component.
 It installs `share/slate/<name>/pkg.json` and
-`lib/pkgconfig/<name>.pc`. The version defaults to `0.0.0`.
+`lib/pkgconfig/<name>.pc`. The version defaults to the project's `version`,
+or `0.0.0` when neither version is declared.
 Exported include directories and explicit library paths must resolve to
 installed files. Static exports include their link dependencies. Install
 `runtime,dev` together when consuming a shared library and its runtime files.
 Matching variants override `exportTarget` and `version` independently.
+An exported library may declare `cmakeTarget: "Package::Target"` to install
+an imported CMake target under `lib/cmake/Package/<name>-target.cmake`.
+Its usage and installed paths come from the same SDK export graph. The project
+owns the package entry point that includes these files; this does not create
+a second project build definition.
 `outputPrefix` applies to `shared` and `cmeta_plugin` and may be empty.
-Source extensions are `.c`, `.cc`, `.cpp`, `.cxx`, and `.C`. GNU-style
+Source extensions are `.c`, `.cc`, `.cpp`, `.cxx`, `.C`, and `.cu`. GNU-style
 drivers also accept Objective-C `.m` and selected `.c` files listed under
 `sources.objc`.
 
@@ -563,7 +579,7 @@ Task = record {
 
 Test = record {
   "name"?: String; "namePrefix"?: String;
-  "program"?: Path; "args"?: list(String);
+  "program"?: Path; "tool"?: TargetName; "args"?: list(String);
   "timeout"?: Number;
   "workingDirectory"?: Path;
   "environment"?: list(String);
@@ -585,19 +601,29 @@ Test = record {
   per-task `restat`.
 - Module task builtins are `copy` and `mustache`. The generator's Jinja
   templates render the Ninja graph, naming policy, and build arguments.
-- A test belongs to an executable. Use at most one of `name` and
+- A test belongs to an executable, or to a `header_only` target with an
+  explicit `program` or `tool`. These runner fields are mutually exclusive.
+  `tool` resolves like a task tool and prepends its common arguments. Use
+  `${artifact:TARGET}` as a complete program or argument to refer to a native
+  fixture before it is built; Slate records the runtime dependency.
+  Use at most one of `name` and
   `namePrefix`. The test name is the explicit `name`, or
   `test.namePrefix + module name` when the prefix is supplied, or the module
   name by default. Concatenation inserts no separator. For a `forEach`
   match named `t_foo`, a test prefix of `"unit."` produces `unit.t_foo`.
   Runnable names in the selected graph must be unique. Timeout is a positive
   integer number of seconds within the unsigned integer range. `environment`
-  overrides inherited variables using `NAME=value` strings. The default
+  overrides preset `testEnvironment` and inherited variables using
+  `NAME=value` strings. The default
   working directory is the build directory and the default program is the
   module artifact.
 - `testOnly` controls test admission. When omitted, an executable with a
   `test` declaration is treated as test-only. `--tests` enables test targets.
   `slate test` runs only host-runnable tests.
+- Arguments after `slate test ... --` append to the declared arguments.
+  Forwarded arguments and `--accept-exit N` require exactly one matching
+  test. `--accept-exit` additionally accepts that nonnegative exit code;
+  launch errors, signals and timeouts still fail.
 
 ## Environment and paths
 
@@ -625,6 +651,7 @@ declared keys contribute values. A duplicate declared key fails.
 | `${env:NAME}` | Explicit string value of a declared key. The process environment takes precedence over the project's `.env`. Missing or empty referenced values fail. |
 | `${envPath:NAME}` | Resolve the declared variable as a path from the project root. The result is absolute and uses forward slashes on Windows. |
 | `${host:rid}`, `${host:exe}` | Host OS and architecture, and the host executable suffix. Available in expanded manifest fields. |
+| `${source:revision}` | Full Git HEAD object ID, or the preset's explicit `sourceRevision` for a source archive. Git reference changes trigger regeneration. |
 | `$root`, `$moduledir`, `$builddir`, `$target` | Project root, owning module directory, build directory, and module artifact in expanded module fields. |
 | `$vcpkg`, `$vcpkgConfig` | Selected vcpkg triplet directory and its configuration-specific tree. The latter appends `debug` for the debug configuration. |
 
@@ -634,6 +661,19 @@ toolchain paths, `buildDir`, and `templateDir` use the project root. Relative
 module paths use the module directory. Use absolute environment paths when
 sharing a portable setting across modules or passing it to a child process.
 The CMake bootstrap reads its SDK path keys separately.
+
+`compilePoolDepth` limits concurrent compilation to an integer from 1 to 1024.
+The default has no compile pool limit. `options.cFlags` and `options.cxxFlags`
+append language-specific flags to the common compile flags.
+
+CUDA sources require an explicit `options.cudaCompiler` executable. On Windows
+the selected host driver must be MSVC. `cudaArchitecture` is a numeric compute
+capability, `cudaStd` selects the CUDA C++ dialect, and `cudaFlags` and
+`cudaHostFlags` supply NVCC and host flags respectively. `cudaRdc: true` enables
+relocatable device code; `cudaDeviceLink: true` requires it and emits a device
+link step before the target archive or final link. NVCC consumes an options
+file through `--options-file`. Generated explicit link libraries must have a
+declared task producer; its output participates in Ninja's dependency graph.
 
 ## Template contracts
 

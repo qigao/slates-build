@@ -7,6 +7,7 @@ function(run_at directory)
     message(FATAL_ERROR "${ARGN} failed (${result})\n${stdout}\n${stderr}")
   endif()
   set(run_output "${stdout}" PARENT_SCOPE)
+  set(run_error "${stderr}" PARENT_SCOPE)
 endfunction()
 
 function(reject regex)
@@ -209,6 +210,7 @@ file(WRITE "${WORK}/apps/test/module.json" [=[
 }
 ]=])
 set(main [=[
+#define _CRT_SECURE_NO_WARNINGS
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -403,11 +405,11 @@ file(WRITE "${WORK}/apps/test/main.cpp" "${second_main}")
 run_at("${WORK}" "${BUILDER}" build ${fixture_build_args})
 run_at("${WORK}" "${BUILDER}" test ${fixture_build_args})
 file(TIMESTAMP "${out}/build.ninja" before "%s")
-run_at("${out}" "${NINJA}")
+run_at("${out}" "${NINJA}" -d explain)
 file(TIMESTAMP "${out}/build.ninja" after "%s")
 if(NOT before STREQUAL after OR run_output MATCHES "preset:" OR
    NOT run_output MATCHES "no work to do")
-  message(FATAL_ERROR "unchanged inputs caused regeneration or rebuilding\n${run_output}")
+  message(FATAL_ERROR "unchanged inputs caused regeneration or rebuilding\n${run_output}\n${run_error}")
 endif()
 file(APPEND "${WORK}/slate.json" "\n// Exercise regeneration from the root manifest.\n")
 run_at("${out}" "${NINJA}")
@@ -1145,3 +1147,85 @@ run_at("${inner_project}/build" "${NINJA}")
 run_at("${inner_project}/build/bin" "${inner_project}/build/bin/app${exe}")
 file(WRITE "${shared_libs}/shared.json" [[{"include":["shared.json"]}]])
 reject("module include cycle" "${BUILDER}" graph --root "${inner_project}")
+
+# External suites retain actual helper kinds and refer to artifacts before build.
+file(WRITE "${shared_libs}/shared.json" [[{"include":["http.json"]}]])
+file(WRITE "${outer_project}/src/runner.c" [=[
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <wchar.h>
+#ifdef _WIN32
+int wmain(int argc, wchar_t **argv) {
+#else
+int main(int argc, char **argv) {
+#endif
+  if (argc != 2 && argc != 3) return 2;
+  const char *setting = getenv("SLATE_ENV");
+  if (!setting || strcmp(setting, "local")) return 4;
+#ifdef _WIN32
+  FILE *file = _wfopen(argv[1], L"rb");
+#else
+  FILE *file = fopen(argv[1], "rb");
+#endif
+  if (!file) return 3;
+  if (fclose(file)) return 5;
+#ifdef _WIN32
+  if (argc == 3) return wcscmp(argv[2], L"qualification argument with spaces") ? 9 : 7;
+#else
+  if (argc == 3) return strcmp(argv[2], "qualification argument with spaces") ? 9 : 7;
+#endif
+  return 0;
+}
+]=])
+file(WRITE "${outer_project}/src/fixture.c" "int main(void) { return 0; }\n")
+file(WRITE "${outer_project}/src/module.json" [=[
+{"targets":{
+ "runner":{"kind":"executable","sources":{"files":["runner.c"]},
+   "variants":[{"when":{"os":"windows","driver":["clang","gcc","llvm-mingw"]},
+                "private":{"linkFlags":["-municode"]}}]},
+ "fixture":{"kind":"executable","sources":{"files":["fixture.c"]}},
+ "suite":{"kind":"header_only","test":{"tool":"runner","args":["${artifact:fixture}"],"environment":["SLATE_ENV=local"],"labels":["external-runner"]}},
+ "program_suite":{"kind":"header_only","test":{"program":"${artifact:fixture}"}}
+}}
+]=])
+file(READ "${outer_project}/slate.json" runner_project)
+string(JSON runner_project SET "${runner_project}" presets debug testEnvironment [[ ["SLATE_ENV=global"] ]])
+file(WRITE "${outer_project}/slate.json" "${runner_project}")
+run_at("${outer_project}" "${BUILDER}" test --target suite --list --build-dir runners)
+if(NOT run_output MATCHES "suite")
+  message(FATAL_ERROR "header-only suite is not registered")
+endif()
+run_at("${outer_project}" "${BUILDER}" test --target suite --build-dir runners)
+run_at("${outer_project}" "${BUILDER}" test --target program_suite --build-dir runners)
+run_at("${outer_project}" "${BUILDER}" test --target suite --build-dir runners
+  --accept-exit 7 -- "qualification argument with spaces")
+reject("exit 7" "${BUILDER}" test --root "${outer_project}" --target suite
+  --build-dir runners -- "qualification argument with spaces")
+reject("exactly one matching test" "${BUILDER}" test --root "${outer_project}"
+  --build-dir runners -- "qualification argument with spaces")
+reject("nonnegative process exit code" "${BUILDER}" test --root "${outer_project}"
+  --target suite --accept-exit 7invalid)
+reject("not a host-runnable executable" "${BUILDER}" run --root "${outer_project}" --target suite --tests)
+
+# A first build must admit a declared library output and link after its producer.
+if(MSVC_DRIVER)
+  set(generated_library "shared_http.lib")
+else()
+  set(generated_library "libshared_http.a")
+endif()
+set(generated_modules [=[
+{"targets":{
+ "generated":{"kind":"prebuilt",
+   "public":{"includeDirs":["@shared_libs@/include"],"libs":["$builddir/generated/@generated_library@"]},
+   "preTasks":[{"name":"archive","builtin":"copy",
+     "inputs":["@outer_project@/build/lib/@generated_library@"],
+     "outputs":["$builddir/generated/@generated_library@"]}]},
+ "linked":{"kind":"executable","sources":{"files":["main.c"]},
+   "private":{"deps":["generated"]},"test":{"name":"generated-library"}}
+}}
+]=])
+string(CONFIGURE "${generated_modules}" generated_modules @ONLY)
+file(WRITE "${outer_project}/src/module.json" "${generated_modules}")
+run_at("${outer_project}" "${BUILDER}" test --target linked --build-dir generated-first)

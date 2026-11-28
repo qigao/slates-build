@@ -79,6 +79,91 @@ static void pkg_path(Json *items, const char *relative) {
   json_add(items, json_create_string(format_string("../../../{}", relative)));
 }
 
+static void cmake_contents(Text *text, const char *value, bool path_value) {
+  if (strpbrk(value, "\r\n"))
+    fail("newline in CMake SDK export");
+  if (path_value)
+    append(text, "${CMAKE_CURRENT_LIST_DIR}/");
+  for (const char *c = value; *c; ++c) {
+    if (strchr("\\\";$", *c))
+      append(text, "\\");
+    append_n(text, c, 1);
+  }
+}
+
+static void cmake_value(Text *text, const char *value, bool path_value) {
+  append(text, "\"");
+  cmake_contents(text, value, path_value);
+  append(text, "\"");
+}
+
+static void cmake_list(Text *text, const char *property, const Json *values,
+                       size_t skip) {
+  if (json_array_size(values) <= skip)
+    return;
+  append(text, property);
+  append(text, " \"");
+  for (size_t i = skip; i < json_array_size(values); ++i) {
+    const char *value = string(json_array_get(values, i), property);
+    if (i != skip) append(text, ";");
+    cmake_contents(text, value, starts(value, "../../../"));
+  }
+  append(text, "\"\n");
+}
+
+static void emit_cmake_target(const Graph *g, const Module *m, const Json *usage,
+                               const char *manifest) {
+  if (!m->cmake_target)
+    return;
+  Text text = {0};
+  append(&text, format_string("if(TARGET {})\n  return()\nendif()\n", m->cmake_target));
+  const char *kind = m->kind == MODULE_STATIC ? "STATIC"
+                     : m->kind == MODULE_SHARED ? "SHARED" : "INTERFACE";
+  append(&text, format_string("add_library({} {} IMPORTED)\nset_target_properties({} PROPERTIES\n",
+                               m->cmake_target, kind, m->cmake_target));
+  if (m->artifact) {
+    append(&text, "IMPORTED_LOCATION ");
+    cmake_value(&text, format_string("../../../{}", mapped_path(g, m, m->artifact, false)), true);
+    append(&text, "\n");
+  }
+  if (m->import_lib) {
+    append(&text, "IMPORTED_IMPLIB ");
+    cmake_value(&text, format_string("../../../{}", mapped_path(g, m, m->import_lib, false)), true);
+    append(&text, "\n");
+  }
+  cmake_list(&text, "INTERFACE_INCLUDE_DIRECTORIES", member(usage, "includeDirs"), 0);
+  cmake_list(&text, "INTERFACE_COMPILE_OPTIONS", member(usage, "flags"), 0);
+  cmake_list(&text, "INTERFACE_LINK_DIRECTORIES", member(usage, "libDirs"), 0);
+  cmake_list(&text, "INTERFACE_LINK_LIBRARIES", member(usage, "libs"), m->artifact ? 1 : 0);
+  cmake_list(&text, "INTERFACE_LINK_OPTIONS", member(usage, "linkFlags"), 0);
+  const Json *defines = member(usage, "defines");
+  if (json_object_size(defines)) {
+    Json *values = own(json_create_array());
+    for (size_t i = 0; i < json_object_size(defines); ++i) {
+      const char *key = json_object_key(defines, i);
+      const Json *value = json_object_value(defines, i);
+      json_add(values, json_create_string(json_type(value) == JSON_NULL ? key
+          : format_string("{}={}", key, string(value, m->name))));
+    }
+    cmake_list(&text, "INTERFACE_COMPILE_DEFINITIONS", values, 0);
+  }
+  Json *features = own(json_create_array());
+  const char *standards[] = {"cStd", "cxxStd"};
+  for (size_t i = 0; i < 2; ++i) {
+    const char *standard = optional_string(get(&m->options, standards[i]), m->name);
+    const char *prefix = i ? "c++" : "c";
+    if (standard && starts(standard, prefix)) {
+      const char *suffix = standard + strlen(prefix);
+      if (*suffix && !suffix[strspn(suffix, "0123456789")])
+        json_add(features, json_create_string(format_string("{}_std_{}", i ? "cxx" : "c", suffix)));
+    }
+  }
+  cmake_list(&text, "INTERFACE_COMPILE_FEATURES", features, 0);
+  append(&text, ")\n");
+  const char *output = path(parent(manifest), format_string("{}-target.cmake", m->name));
+  write_file(output, contents(&text), text.length);
+}
+
 static void sdk_link_usage(const Graph *g, const Module *m, const Usage *usage,
                            Json *dirs, Json *libs, Json *flags, Text *pc_dirs,
                            Text *pc_libs) {
@@ -238,4 +323,5 @@ void emit_sdk(const Graph *g, const Module *m, const BuildTemplate *json,
   const Text metadata = render_template(pc, &descriptor, &context, NULL);
   write_file(manifest, contents(&pkg), pkg.length);
   write_file(pkgconfig, contents(&metadata), metadata.length);
+  emit_cmake_target(g, m, usage, manifest);
 }

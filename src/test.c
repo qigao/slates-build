@@ -13,13 +13,21 @@ static const char *const *test_vector(const Strings *values) {
 }
 
 static bool run_test(const Project *project, const Module *module) {
+  Strings args = module->test_args;
+  if (project->request->test_args) {
+    args = (Strings){0};
+    for (size_t i = 0; i < module->test_args.count; ++i)
+      push(&args, module->test_args.items[i]);
+    for (const char *const *arg = project->request->test_args; *arg; ++arg)
+      push(&args, *arg);
+  }
   process_options_t options;
   process_options_init(&options);
   options.program =
       module->test_program ? module->test_program : module->artifact;
   options.cwd =
       module->test_directory ? module->test_directory : project->build_dir;
-  options.args = test_vector(&module->test_args);
+  options.args = test_vector(&args);
   options.env = test_vector(&module->test_environment);
   options.timeout_ms = (uint64_t)module->test_timeout * 1000;
   options.flags = 0;
@@ -51,7 +59,7 @@ static bool run_test(const Project *project, const Module *module) {
   else if (result.state != SALTS_PROCESS_EXITED)
     print_line("{} {} (process state {}, error {})", failure, module->test_name,
                (int)result.state, result.error_code);
-  else if (result.exit_code)
+  else if (result.exit_code && result.exit_code != project->request->test_accept_exit)
     print_line("{} {} (exit {})", failure, module->test_name, result.exit_code);
   else {
     print_line("{} {}", console_mark("PASS", "32"), module->test_name);
@@ -69,7 +77,7 @@ int test_project(Graph *graph, const char *ninja) {
   for (size_t i = 0; i < graph->count; ++i) {
     const Module *module = graph->modules[i];
     if (!module->selected || !module->test_name ||
-        !module_runnable(project, module))
+        (!project->native && module->tools != &project->host))
       continue;
     if (contains(&names, module->test_name))
       failf("duplicate test name '{}'", module->test_name);
@@ -89,6 +97,8 @@ int test_project(Graph *graph, const char *ninja) {
   }
   if (!count)
     fail("no matching host-runnable tests");
+  if (count != 1 && (request->test_args || request->test_accept_exit))
+    fail("test arguments and --accept-exit require exactly one matching test");
   for (size_t i = 0; i < count; ++i)
     push(&targets, module_alias(tests[i]));
   push(&targets, NULL);
