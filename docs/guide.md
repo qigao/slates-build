@@ -4,13 +4,19 @@
 Ninja executes compile, archive, link, and task rules. `slate test` builds
 and runs tests declared in the project's module manifests.
 
+The CUDA, external-runner, and CMake-export examples cover additions in the
+current source tree. If an installed release does not recognize those
+options, use a build from source.
+
 ## Bootstrap the generator
 
 Install CMake 3.27 or later, Ninja, and the ABI-matched SDKs listed in the
 [bootstrap README](https://github.com/qigao/slates-build#bootstrap). On Windows with LLVM-MinGW,
 use the VS Code task **CMake: configure and build Slate** or follow the manual
 PowerShell commands in the bootstrap README. With another toolchain, supply
-the SDK roots to CMake and configure with the matching compiler.
+the SDK roots and exact `SALTS_BASE_VERSION`, `SALTS_UTILS_VERSION`, and
+`CMETA_VERSION` environment values to CMake, then configure with the matching
+compiler. The Windows environment loader reads these values from `.env`.
 
 ```sh
 cmake --build out/bootstrap --target slate
@@ -127,6 +133,46 @@ companion module that references `pkg.json`. Consumers can load the companion
 through `libraries` and use the exported target name in `deps`.
 [See the sample SDK](examples.md#export-and-consume-an-sdk)
 
+### Export a CMake target
+
+To let CMake applications consume the same installed SDK, add a namespaced
+`cmakeTarget` to an exported library. This `install` block belongs to a
+target named `mylib`; its public include directory must also be declared in
+`public.includeDirs`.
+
+```json
+"install": {
+  "exportTarget": true,
+  "version": "1.2.3",
+  "cmakeTarget": "Mylib::Mylib",
+  "headers": [{ "from": "include", "to": "include" }],
+  "assets": [{ "from": "cmake/MylibConfig.cmake", "to": "lib/cmake/Mylib" }]
+}
+```
+
+Create `cmake/MylibConfig.cmake` beside the module's sources with this entry
+point. Slate generates and installs `mylib-target.cmake` in the same directory.
+
+```cmake
+include("${CMAKE_CURRENT_LIST_DIR}/mylib-target.cmake")
+```
+
+Install the SDK with `slate install --target mylib --components runtime,dev
+--prefix dist/mylib-sdk`. A CMake application can then use the imported target.
+
+```cmake
+find_package(Mylib CONFIG REQUIRED)
+target_link_libraries(app PRIVATE Mylib::Mylib)
+```
+
+Pass the installed SDK prefix through `CMAKE_PREFIX_PATH` when configuring
+the application. The generated target uses the same installed include paths,
+link inputs, and compile usage as the Slate SDK export. The project supplies
+the package entry point; Slate generates the individual target file.
+An export's version defaults to the top-level project `version`, or `0.0.0`
+when neither version is declared. See the
+[installation reference](grammar.md#installation-mappings).
+
 ## Run Ninja subtools
 
 Run `slate tool list` to see which subtools your Ninja provides.
@@ -186,6 +232,7 @@ appear under `Targets`, grouped by their module directories. Each project
 keeps its own preset and command root, including when target names overlap.
 This hierarchy uses the existing directory layout and needs no additional
 manifest fields. CLI commands continue to select one project with `--root`.
+[Editor installation, row actions, and run arguments](editors.md).
 
 After renaming an existing project config to `slate.json`, run `slate gen`
 with the same selectors and build directory to refresh Ninja's dependencies.
@@ -272,6 +319,61 @@ if any test fails or the selection is empty. A declared `test.program` runs as
 the test command. Add `"$target"` to `test.args` when that command needs the
 built executable's path.
 
+### Run an external test suite
+
+Keep a script suite in a `header_only` target with an explicit test runner.
+For example, declare Python as a host tool in `slate.json`.
+
+```json
+"tools": {
+  "python": { "program": "python" }
+}
+```
+
+In the module manifest, declare the native fixture with its actual kind and
+refer to its artifact in the suite's arguments. `verify.py` in this example
+receives the fixture executable's path and any forwarded arguments.
+
+```json
+{
+  "targets": {
+    "fixture": {
+      "kind": "executable",
+      "sources": { "files": ["fixture.c"] }
+    },
+    "suite": {
+      "kind": "header_only",
+      "test": {
+        "tool": "python",
+        "args": ["$moduledir/verify.py", "${artifact:fixture}"],
+        "workingDirectory": "$root",
+        "environment": ["SUITE_MODE=qualification"],
+        "labels": ["qualification"]
+      }
+    }
+  }
+}
+```
+
+```sh
+slate test --target suite --list
+slate test --target suite -- fixture/model.json report.json
+slate test --target suite --accept-exit 2 -- fixture/model.json report.json
+```
+
+`${artifact:fixture}` is resolved before the file exists and records the
+dependency, so Ninja builds the fixture before the runner starts.
+Here `workingDirectory` makes the forwarded model and report paths relative
+to the project root. The default working directory is the build directory.
+`test.tool` can also name a host-runnable executable target. Use `test.program`
+for a direct executable path; `tool` and `program` are mutually exclusive.
+
+Arguments after `--` append to the declared arguments. Forwarded arguments
+and `--accept-exit` require exactly one matching test. Accepting exit 2 is
+appropriate only when that suite defines it as a successful result; launch
+errors, signals, and timeouts still fail. A test's `environment` overrides
+preset `testEnvironment`, which overrides inherited process values.
+
 ## Select a platform and compiler
 
 Use `doctor` with the same preset, platform, compiler, and target selection
@@ -344,6 +446,70 @@ A configured `triple` sets the target for Clang-based drivers. Set
 `sysroot` when the target needs a separate SDK tree for headers and
 libraries. See [candidate selection](grammar.md#candidate-selection).
 
+## Compile CUDA sources
+
+Use a CLI build with CUDA support and install the CUDA toolkit separately.
+Slate requires an explicit `options.cudaCompiler`; it does not choose NVCC
+from an unrelated toolchain. On Windows, select the MSVC host toolchain.
+
+This Windows project uses the sample native toolchain and preset fragments.
+Declare `CUDA_ROOT` and `VSDEVCMD_BAT` in the project environment, then point
+them at the CUDA toolkit and Visual Studio developer script in `.env`.
+
+```json
+{
+  "include": ["presets/NativeToolchains.json", "presets/DefaultPreset.json"],
+  "env": ["CUDA_ROOT", "VSDEVCMD_BAT"],
+  "modules": ["math"],
+  "defaultPreset": "cuda",
+  "presets": {
+    "cuda": {
+      "inherits": "release",
+      "targetPlatform": "windows-x64",
+      "toolchain": "msvc-win64",
+      "vsDevCmd": "${envPath:VSDEVCMD_BAT}",
+      "compilePoolDepth": 2,
+      "options": {
+        "cudaCompiler": "${envPath:CUDA_ROOT}/bin/nvcc.exe",
+        "cudaArchitecture": "75",
+        "cudaStd": "c++17"
+      }
+    }
+  }
+}
+```
+
+Place CUDA sources in `math/` and declare them in `math/module.json`.
+Use a compute capability supported by the toolkit and intended GPU.
+
+```json
+{
+  "name": "cuda_math",
+  "kind": "static",
+  "sources": { "files": ["a.cu", "b.cu"] },
+  "options": { "cudaRdc": true, "cudaDeviceLink": true },
+  "private": { "libs": ["${envPath:CUDA_ROOT}/lib/x64/cudart_static.lib"] }
+}
+```
+
+```sh
+slate doctor --preset cuda --target cuda_math
+slate build --preset cuda --target cuda_math
+```
+
+`cudaRdc` enables relocatable device code; `cudaDeviceLink` requires it and
+adds a device-link step before the archive or final link. Omit both for
+targets that do not need separate device linking. Use `cudaFlags` for NVCC
+arguments and `cudaHostFlags` for its host compiler. On Linux, use the
+toolkit's `bin/nvcc`, select a compatible native host compiler, and declare
+the appropriate CUDA link libraries for that platform.
+
+`compilePoolDepth` limits concurrent compilation to an integer from 1 to
+1024. It is independent of `linkPoolDepth`. `options.cFlags` and
+`options.cxxFlags` add flags for their respective host source languages.
+The [CUDA integration fixture](https://github.com/qigao/slates-build/blob/main/tests/cuda.cmake)
+contains a complete two-source device-link example.
+
 ## Share a library manifest across projects
 
 Put reusable library targets in a module manifest. The sample consumer's
@@ -404,6 +570,21 @@ without a provider. [Package provider grammar](grammar.md#package-providers).
 The generator uses the same resolved artifact paths throughout the graph,
 including task arguments and test commands. The Ninja graph tracks active template
 overrides and can regenerate when they are added, edited, or removed.
+
+### Record the source revision
+
+Use `${source:revision}` in expanded module fields to record the full Git
+HEAD object ID, for example in a compile definition.
+
+```json
+"private": {
+  "defines": { "BUILD_REVISION": "\"${source:revision}\"" }
+}
+```
+
+Slate tracks the Git references used to resolve the revision. For a source
+archive without Git metadata, set the preset's `sourceRevision` to the full
+40- or 64-character hexadecimal object ID supplied by the producer.
 
 ### Stage a plugin's runtime DLLs
 

@@ -40,6 +40,25 @@ title: Slate
     </div>
   </section>
 
+  <section class="paths" id="advanced-builds" aria-labelledby="advanced-builds-title">
+    <h2 id="advanced-builds-title">Extend the build and test workflow</h2>
+    <p>Use current CLI source builds for CUDA compilation, external test runners, and CMake SDK exports.</p>
+    <div class="path-grid">
+      <div>
+        <h3>Compile CUDA sources</h3>
+        <p>Declare an NVCC executable, select the compute capability, and compile <code>.cu</code> files alongside C and C++. Enable relocatable device code and a device-link step when needed. <a href="{{ '/guide.html' | relative_url }}#compile-cuda-sources">Configure CUDA</a>.</p>
+      </div>
+      <div>
+        <h3>Run external test suites</h3>
+        <p>Register a script or host tool as a test runner. Reference native fixtures with <code>${artifact:TARGET}</code> and forward arguments to one selected suite. <a href="{{ '/guide.html' | relative_url }}#run-an-external-test-suite">Declare a test runner</a>.</p>
+      </div>
+      <div>
+        <h3>Export CMake targets</h3>
+        <p>Add <code>install.cmakeTarget</code> to an exported library. Install a relocatable imported target for CMake consumers alongside Slate's SDK metadata. <a href="{{ '/guide.html' | relative_url }}#export-a-cmake-target">Export a CMake target</a>.</p>
+      </div>
+    </div>
+  </section>
+
   <section class="paths" id="sdk-example" aria-labelledby="sdk-example-title">
     <h2 id="sdk-example-title">Export and consume an SDK</h2>
     <p>Build a shared <code>stats</code> library from two modules, then use the installed SDK from a second project with its own <code>slate.json</code>.</p>
@@ -110,16 +129,17 @@ title: Slate
 
   <section class="paths" id="editors" aria-labelledby="editors-title">
     <h2 id="editors-title">Manage Slate projects in VS Code and OpenIDEA</h2>
-    <p>Open a workspace with <code>slate.json</code> and use the Slate sidebar to choose a preset, browse targets and source files, and build, run, or test your project.</p>
+    <p>Browse projects by workspace directory, then expand each project's <strong>Targets</strong> branch to see module folders, targets, and source files. Each project keeps its own preset and build directory, including when target names overlap.</p>
     <div class="steps">
       <div>
         <h3>VS Code</h3>
-        <p>Install Slate Build and open <strong>Slate Targets</strong> from the Activity Bar. <a href="{{ site.vscode_extension }}">Install from the Marketplace</a> · <a href="{{ site.vscode_releases }}">Download the VSIX</a></p>
+        <p>Open <strong>Slate Targets</strong> from the Activity Bar. Use the project gear to generate Ninja files, select a preset, and build, run, or test a target. Multiple workspace folders keep their own branches. <a href="{{ site.vscode_extension }}">Install from the Marketplace</a> · <a href="{{ site.vscode_releases }}">Download the VSIX</a></p>
       </div>
       <div>
         <h3>OpenIDEA</h3>
-        <p>Install the <code>.oiplugin</code> package via <strong>Settings → Plugins → Install Plugin from Disk</strong>, then open the Slate tool window. <a href="{{ site.openidea_releases }}">Download the OpenIDEA plugin</a>.</p>
+        <p>Open the Slate tool window for the same project hierarchy and Codicons. Project rows offer generation and preset selection; target rows offer build, run, and test actions. Colors follow the OpenIDEA theme. <a href="{{ site.openidea_releases }}">Download the OpenIDEA plugin</a>.</p>
       </div>
     </div>
+    <p class="sdk-note"><a href="{{ '/editors.html' | relative_url }}">Read the editor guide</a> for workspace nesting, icons, presets, and run arguments. Directory-based nesting and the matching OpenIDEA icons are available in current plugin source builds.</p>
   </section>
 </div>

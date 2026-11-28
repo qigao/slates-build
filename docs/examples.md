@@ -124,6 +124,8 @@ to the CLI in `out/bootstrap`. On Windows, the **CMake: configure and build Slat
 task builds that CLI. On other platforms, use CMake with `-B out/bootstrap`.
 In OpenIDEA, configure the plugin to use Slate v0.1.15 or later.
 
-After installing the SDK, choose the consumer project in the Slate sidebar.
-Select the toolchain preset used to install the SDK, then click **Run** on
-`stats-demo`.
+After installing the SDK, expand **apps → consumer** in the Slate sidebar.
+The producer's targets stay under **apps → Targets**; the consumer has its
+own **Targets** branch and preset. Select the toolchain preset used to install
+the SDK, then click **Run** on the `stats-demo` target. This program needs no
+run arguments. [Workspace hierarchy and editor actions](editors.md).

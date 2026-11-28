@@ -71,7 +71,7 @@ otherwise.
 
 `graph --format json` writes the resolved `preset`, `platform`, `compiler`,
 `buildDirectory`, graph `inputs`, and `targets`. Each target has `name`,
-`folder`, `manifest`, `kind`, `runnable`, `test`, and lists `sources`, `headers`,
+`folder`, `manifest`, `kind`, `runnable`, `test`, `testName`, and lists `sources`, `headers`,
 `taskInputs`, `taskOutputs`, `publicDeps`, `privateDeps`, `runtimeDeps`. `sources`
 contains the resolved absolute source paths for the target. `headers` contains absolute paths from
 `install.headers`, headers next to selected sources, headers in the target's
@@ -80,6 +80,11 @@ target's `preTasks`. `taskInputs` and `taskOutputs` list the resolved file paths
 for tasks owned by the target. A target filter limits the result to the selected
 graph.
 Without a filter, the JSON includes every admitted target.
+`testName` is the declared test name or `null`. `runnable` identifies
+host-runnable executable targets; `test` identifies host-runnable declared
+tests, including external runners that have no executable artifact of their
+own. Editors use `folder` for the module hierarchy and keep the containing
+project's command root separate. See the [editor guide](editors.md).
 
 `test` enables test targets and applies the same project and target selectors
 as `build`. `--filter` matches a case-sensitive substring of the test name.
