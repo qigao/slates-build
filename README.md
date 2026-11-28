@@ -23,7 +23,9 @@ Use CMake 3.27 or later, Ninja, a C11 compiler, and ABI-matched SDKs. Bootstrap 
 On Windows with LLVM-MinGW SDKs, set `SALTS_BASE_ROOT`, `SALTS_UTILS_ROOT`,
 `CMETA_ROOT`, and `LLVM_MINGW_ROOT` in the repository's `.env`. In VS Code,
 run **CMake: configure and build Slate**. Both steps load the bootstrap
-environment. Configure runs a fresh Ninja configure in `out/bootstrap`, and
+environment. Also set `SALTS_BASE_VERSION`, `SALTS_UTILS_VERSION`, and
+`CMETA_VERSION` to the exact SDK release numbers, without `v`; see
+[`.env.example`](.env.example). Configure runs a fresh Ninja configure in `out/bootstrap`, and
 build honors `CMAKE_BUILD_PARALLEL_LEVEL` when supplied. Relative paths resolve
 from the repository root, and parent environment values take precedence over
 `.env`.
@@ -42,6 +44,7 @@ ctest --test-dir out/bootstrap --output-on-failure
 For direct CMake configuration, supply the SDK roots through the parent
 environment or set `SaltsBase_ROOT`, `SaltsUtils_ROOT`, and `CMeta_ROOT`
 with `-D`. Select a compiler that matches the SDK ABI.
+The three SDK version variables must also be present in the environment.
 
 Use a fresh build directory when switching the compiler or installed SDKs.
 The Windows bootstrap places the SDK runtime DLLs next to the executable and

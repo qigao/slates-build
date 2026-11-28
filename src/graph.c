@@ -144,6 +144,70 @@ static void merge_usage(Usage *out, const Usage *in) {
   }
 }
 
+/* Artifact references denote graph edges even before their files exist. */
+static const char *test_artifact(Graph *g, Module *m, const char *value) {
+  const char *prefix = "${artifact:";
+  if (!starts(value, prefix))
+    return NULL;
+  if (!ends(value, "}"))
+    failf("{}: artifact references must occupy the complete test value", m->name);
+  const char *name = slice(value + strlen(prefix),
+                           strlen(value) - strlen(prefix) - 1);
+  Module *dep = dependency(g, m, name);
+  if (!dep->artifact || dep->tools != m->tools)
+    failf("{}: test artifact {} must have an artifact in the same role", m->name,
+          name);
+  if (dep != m)
+    unique(&m->runtime_deps, name);
+  return dep->artifact;
+}
+
+static void resolve_test(Graph *g, Module *m) {
+  Project *p = g->project;
+  const char *program_root = m->directory;
+  if (m->test_tool) {
+    Module *tool = find_module(g, m->test_tool);
+    if (tool) {
+      if (!module_runnable(p, tool) || tool->kind != MODULE_EXECUTABLE)
+        failf("{}: test tool {} must be a host-runnable executable", m->name,
+              m->test_tool);
+      m->test_program = test_artifact(
+          g, m, format_string("{}{}{}", "${artifact:", m->test_tool, "}"));
+    } else {
+      const Json *declared = member(member(p->manifest, "tools"), m->test_tool);
+      if (!declared)
+        failf("{}: unknown test tool {}", m->name, m->test_tool);
+      const char *where = format_string("tools.{}", m->test_tool);
+      check_fields(declared, where, " program args ");
+      m->test_program = string(member(declared, "program"), where);
+      program_root = p->root;
+      Strings args = {0};
+      read_strings(&args, member(declared, "args"), where);
+      for (size_t i = 0; i < m->test_args.count; ++i)
+        push(&args, m->test_args.items[i]);
+      m->test_args = args;
+    }
+  }
+  if (m->test_program) {
+    const char *artifact = test_artifact(g, m, m->test_program);
+    if (artifact)
+      m->test_program = artifact;
+    else if (!(m->test_tool && find_module(g, m->test_tool))) {
+      const char *program = module_text(p, m, m->test_program);
+      m->test_program = find_program(program_root, program);
+      if (!m->test_program)
+        failf("{}: test program not found: {}", m->name, program);
+    }
+  }
+  for (size_t i = 0; i < m->test_args.count; ++i) {
+    const char *artifact = test_artifact(g, m, m->test_args.items[i]);
+    m->test_args.items[i] = artifact ? artifact
+                                    : module_text(p, m, m->test_args.items[i]);
+  }
+  for (size_t i = 0; i < m->test_environment.count; ++i)
+    m->test_environment.items[i] = module_text(p, m, m->test_environment.items[i]);
+}
+
 static void visit_module(Graph *g, Module *m, Strings *stack) {
   if (m->state == 1)
     cycle(stack, m->name);
@@ -162,14 +226,8 @@ static void visit_module(Graph *g, Module *m, Strings *stack) {
       unique(&m->runtime_bins,
              path(p->root, module_text(p, m, runtime.items[i])));
   }
-  if (m->test_program) {
-    const char *program = module_text(g->project, m, m->test_program);
-    m->test_program = find_program(m->directory, program);
-    if (!m->test_program)
-      failf("{}: test program not found: {}", m->name, program);
-  }
-  for (size_t i = 0; i < m->test_args.count; ++i)
-    m->test_args.items[i] = module_text(g->project, m, m->test_args.items[i]);
+  if (m->test_name)
+    resolve_test(g, m);
   Usage inherited = {0};
   const Strings *edges[] = {&m->public_deps, &m->private_deps};
   for (size_t j = 0; j < 2; ++j) {
@@ -199,6 +257,17 @@ static void visit_module(Graph *g, Module *m, Strings *stack) {
   for (size_t i = 0; i < g->task_count; ++i)
     if (g->tasks[i]->owner == m)
       visit_task(g, g->tasks[i], stack);
+  const Usage *usages[] = {&m->public_usage, &m->private_usage};
+  for (size_t i = 0; i < sizeof(usages) / sizeof(*usages); ++i)
+    for (size_t j = 0; j < usages[i]->libs.count; ++j) {
+      const char *library = usages[i]->libs.items[j];
+      Task *task = producer(g, library);
+      if (task) {
+        if (!visible(task->owner, m))
+          failf("{} cannot consume generated library {}", m->name, library);
+        visit_task(g, task, stack);
+      }
+    }
   for (size_t i = 0; i < m->sources.count; ++i) {
     const char *source = m->sources.items[i];
     Task *task = producer(g, source);
@@ -214,7 +283,20 @@ static void visit_module(Graph *g, Module *m, Strings *stack) {
       failf(
           "{}: sources.objc requires a .c file and an Objective-C compiler: {}",
           m->name, source);
-    if (ends(source, ".cc") || ends(source, ".cpp") || ends(source, ".cxx") ||
+    if (ends(source, ".cu")) {
+      if (same(m->tools->os, "windows") && !m->tools->msvc)
+        failf("{}: Windows CUDA compilation requires the MSVC host toolchain",
+              m->name);
+      const char *declared = optional_string(get(&m->options, "cudaCompiler"),
+                                              m->name);
+      if (!declared)
+        failf("{}: CUDA sources require options.cudaCompiler", m->name);
+      m->cuda_compiler = find_program(g->project->root,
+                                      module_text(g->project, m, declared));
+      if (!m->cuda_compiler)
+        failf("{}: CUDA compiler not found: {}", m->name, declared);
+      m->cxx = true;
+    } else if (ends(source, ".cc") || ends(source, ".cpp") || ends(source, ".cxx") ||
         ends(source, ".C"))
       m->cxx = true;
     else if (!ends(source, ".c") && (m->tools->msvc || !ends(source, ".m")))
@@ -270,7 +352,8 @@ Graph load_graph(Project *p) {
     }
   } else {
     for (size_t i = 0; i < g.count; ++i)
-      if (g.modules[i]->tools == &p->target)
+      if (g.modules[i]->tools == &p->target ||
+          (p->tests && g.modules[i]->test_name))
         visit_module(&g, g.modules[i], &stack);
   }
   bool changed;
@@ -293,6 +376,13 @@ Graph load_graph(Project *p) {
   } while (changed);
   for (size_t i = 0; i < g.count; ++i) {
     Module *m = g.modules[i];
+    if (m->selected && m->cmake_target)
+      for (size_t j = 0; j < i; ++j) {
+        const Module *other = g.modules[j];
+        if (other->selected && same(m->cmake_target, other->cmake_target))
+          failf("{} and {} export the same CMake target {}", m->name,
+                other->name, m->cmake_target);
+      }
     if (!m->selected || !m->artifact)
       continue;
     if (producer(&g, m->artifact) ||
@@ -501,7 +591,9 @@ void print_graph_json(const Graph *g) {
              json_create_string(json_get_string(m->data, "kind")));
     json_set(target, "runnable", json_create_bool(module_runnable(p, m)));
     json_set(target, "test",
-             json_create_bool(m->test_name && module_runnable(p, m)));
+             json_create_bool(m->test_name && (p->native || m->tools == &p->host)));
+    json_set(target, "testName", m->test_name ? json_create_string(m->test_name)
+                                              : json_create_null());
     json_set(target, "publicDeps", graph_strings(&m->public_deps));
     json_set(target, "privateDeps", graph_strings(&m->private_deps));
     json_set(target, "runtimeDeps", graph_strings(&m->runtime_deps));

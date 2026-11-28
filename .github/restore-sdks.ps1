@@ -28,4 +28,11 @@ foreach ($asset in $lock[$Profile]) {
         $value = $configFiles[0].FullName
     }
     Add-Content -LiteralPath $env:GITHUB_ENV -Value "$($asset.env)=$value" -Encoding utf8
+    if ($asset.env -in @('SALTS_BASE_ROOT', 'SALTS_UTILS_ROOT', 'CMETA_ROOT')) {
+        if ($asset.url -notmatch '/releases/download/v([0-9]+\.[0-9]+\.[0-9]+)/') {
+            throw "Expected an exact SDK release in $($asset.url)."
+        }
+        $versionKey = $asset.env -replace '_ROOT$', '_VERSION'
+        Add-Content -LiteralPath $env:GITHUB_ENV -Value "$versionKey=$($Matches[1])" -Encoding utf8
+    }
 }

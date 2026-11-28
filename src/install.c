@@ -164,6 +164,13 @@ static void plan_module(const Graph *g, const Module *m,
       plan_artifact(g, entries, inputs, json,
                     format_string("share/" SLATE_NAME "/{}", m->name));
       plan_artifact(g, entries, inputs, pc, "lib/pkgconfig");
+      if (m->cmake_target) {
+        const char *scope = strstr(m->cmake_target, "::");
+        const char *package = slice(m->cmake_target, (size_t)(scope - m->cmake_target));
+        const char *cmake = path(dir, format_string("{}-target.cmake", m->name));
+        push(metadata, cmake);
+        plan_artifact(g, entries, inputs, cmake, format_string("lib/cmake/{}", package));
+      }
     }
   } else {
     plan_artifact(g, entries, inputs, module_pdb(m), "symbols");

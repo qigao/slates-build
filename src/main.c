@@ -7,6 +7,8 @@
 #include <cmd_arger.h>
 #include <dotenv.h>
 #include <mustache_json.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #ifndef _WIN32
@@ -113,7 +115,7 @@ static Request arguments(int count, char **args) {
   char *dir = NULL, *explain = NULL, *locked_target = NULL, *locked_host = NULL;
   char *format = NULL;
   char *ninja_tool = NULL, *prefix = NULL, *components = NULL;
-  char *test_filter = NULL, *test_label = NULL;
+  char *test_filter = NULL, *test_label = NULL, *test_accept_exit = NULL;
   char **targets = take((size_t)count * sizeof(*targets));
   uint32_t target_count = 0;
   CmdArgerBool tests = cmd_arger_false, list_tests = cmd_arger_false;
@@ -132,6 +134,8 @@ static Request arguments(int count, char **args) {
       cmd_arger_desc_string(&test_filter, "filter",
                             "Test name substring (test)"),
       cmd_arger_desc_string(&test_label, "label", "Exact test label (test)"),
+      cmd_arger_desc_string(&test_accept_exit, "accept-exit",
+                            "Also accept this exit code for one selected test"),
       cmd_arger_desc_string(&explain, "explain",
                             "Explain a target (gen or build)"),
       cmd_arger_desc_string(&format, "format", "Graph format (dot or json)"),
@@ -192,8 +196,8 @@ static Request arguments(int count, char **args) {
       action < public_commands ? public_commands : command_count, &selected,
       normalized_count, normalized, app_version, cmd_arger_false);
   const bool test = same(commands[selected].name, "test");
-  if (!test && (list_tests || test_filter || test_label))
-    fail("--list, --filter and --label require test");
+  if (!test && (list_tests || test_filter || test_label || test_accept_exit))
+    fail("--list, --filter, --label and --accept-exit require test");
   Request req = {.command = commands[selected].name,
                  .root = root,
                  .preset = preset,
@@ -208,6 +212,14 @@ static Request arguments(int count, char **args) {
                  .test_label = test_label,
                  .locked_target = locked_target,
                  .locked_host = locked_host};
+  if (test_accept_exit) {
+    char *end;
+    errno = 0;
+    long code = strtol(test_accept_exit, &end, 10);
+    if (errno || !*test_accept_exit || *end || code < 0 || code > INT_MAX)
+      fail("--accept-exit requires a nonnegative process exit code");
+    req.test_accept_exit = (int)code;
+  }
   if (same(req.command, "install")) {
     if (prefix && !*prefix)
       fail("--prefix requires a nonempty directory");
@@ -405,7 +417,7 @@ int main(int argc, char **argv) {
     return 0;
   }
   int option_count = argc;
-  if (same(action, "tool") || same(action, "run")) {
+  if (same(action, "tool") || same(action, "run") || same(action, "test")) {
     for (int i = 2; i < argc; ++i)
       if (same(argv[i], "--")) {
         option_count = i;
@@ -414,6 +426,8 @@ int main(int argc, char **argv) {
   }
   Request req = arguments(option_count, argv);
   char **extra_args = option_count < argc ? argv + option_count + 1 : NULL;
+  if (same(req.command, "test"))
+    req.test_args = (const char *const *)extra_args;
   if (req.ninja_tool)
     return run_ninja_tool(&req, extra_args);
   action = req.command;

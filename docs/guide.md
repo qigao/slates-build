@@ -179,6 +179,14 @@ repository root, select a project with `--root apps` or `--root apps/consumer`.
 Each project resolves its own presets, target names, and build directory. Use
 `modules` to build targets together in one project graph.
 
+The VS Code and OpenIDEA plugins arrange these projects by their workspace
+directories. For example, `apps/fetch/slate.json` appears under `apps` then
+`fetch`. A project directory can contain further projects; its own targets
+appear under `Targets`, grouped by their module directories. Each project
+keeps its own preset and command root, including when target names overlap.
+This hierarchy uses the existing directory layout and needs no additional
+manifest fields. CLI commands continue to select one project with `--root`.
+
 After renaming an existing project config to `slate.json`, run `slate gen`
 with the same selectors and build directory to refresh Ninja's dependencies.
 
@@ -252,7 +260,13 @@ slate test --target check --list
 slate test --target check --build-dir out/check-debug --label smoke
 ```
 
-Use `--filter` to select names containing a substring. Slate streams process
+Use `--filter` to select names containing a substring. For a model qualification,
+select one registered test and pass its fixture arguments directly, for example
+`slate test --target model_qualification -- fixture/model.json report.json`.
+Use `--accept-exit 2` only when the qualification contract also accepts exit 2.
+External script suites belong to `header_only` targets with `test.tool` or
+`test.program`; their native fixtures remain executable or library targets.
+Slate streams process
 output, prints a result for every matching test, and returns a failure status
 if any test fails or the selection is empty. A declared `test.program` runs as
 the test command. Add `"$target"` to `test.args` when that command needs the

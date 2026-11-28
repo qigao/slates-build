@@ -1,0 +1,42 @@
+[
+{% if policy.optimization == "none" %}
+  "-O0",
+{% else %}
+  "-O2",
+{% endif %}
+{% if policy.debug_info != "none" %}
+  "-g",
+{% endif %}
+{% if policy.runtime_lib %}
+  "-Xcompiler=/EHsc", "-Xcompiler=/Zc:preprocessor",
+{% if policy.runtime_lib == "dynamic" %}
+  {% if policy.debug_crt %}"-Xcompiler=/MDd",{% else %}"-Xcompiler=/MD",{% endif %}
+{% else %}
+  {% if policy.debug_crt %}"-Xcompiler=/MTd",{% else %}"-Xcompiler=/MT",{% endif %}
+{% endif %}
+{% if policy.werror %}
+  "-Xcompiler=/WX",
+{% endif %}
+{% else %}
+{% if pic %}
+  "-Xcompiler=-fPIC",
+{% endif %}
+{% if policy.werror %}
+  "-Xcompiler=-Werror",
+{% endif %}
+{% endif %}
+{% if standard %}
+  {{ ("--std=" ~ standard) | tojson }},
+{% endif %}
+{% for include in includes %}
+  {{ ("-I" ~ include) | tojson }},
+{% endfor %}
+{% for define in defines %}
+  {{ ("-D" ~ define) | tojson }},
+{% endfor %}
+{% for flag in flags %}
+  {{ flag | tojson }},
+{% endfor %}
+  "--generate-dependencies-with-compile", "--dependency-output", {{ depfile | tojson }},
+  "-c", "-o", {{ output | tojson }}, {{ source | tojson }}
+]

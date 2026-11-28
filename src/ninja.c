@@ -1,4 +1,5 @@
 #include "build.h"
+#include "module.h"
 #include "template.h"
 
 #include <string.h>
@@ -36,6 +37,7 @@ typedef struct {
   size_t rule_count;
   size_t rule_capacity;
   const char *rule_names[RULE_COUNT];
+  int compile_depth;
 } NinjaEdges;
 
 typedef enum {
@@ -44,6 +46,7 @@ typedef enum {
   ARTIFACT_NAMES,
   COMPILE_MSVC,
   COMPILE_GNU,
+  COMPILE_CUDA,
   LINK_MSVC,
   LINK_MINGW,
   LINK_ELF,
@@ -60,6 +63,7 @@ static const char *const template_names[TEMPLATE_COUNT] = {
     [NINJA_RULES] = "ninja-rules.json",
     [COMPILE_MSVC] = "compile_msvc.json.j2",
     [COMPILE_GNU] = "compile_gnu.json.j2",
+    [COMPILE_CUDA] = "compile_nvcc.json.j2",
     [LINK_MSVC] = "link_msvc.json.j2",
     [LINK_MINGW] = "link_mingw.json.j2",
     [LINK_ELF] = "link_elf.json.j2",
@@ -93,12 +97,14 @@ static void render_link_args(const BuildTemplate *templ, const Module *m,
 
 typedef struct {
   int link_pool_depth;
+  int compile_pool_depth;
   cmeta_data_collection_view edges;
   cmeta_data_collection_view rules;
 } NinjaTemplateData;
 
 cmeta_reflect_data(NinjaTemplateData, "slate.ninja.template",
                    cmeta_data_field(int, link_pool_depth, &cmeta_data_int)
+                       cmeta_data_field(int, compile_pool_depth, &cmeta_data_int)
                        cmeta_data_field(cmeta_data_collection_view, edges,
                                         &cmeta_data_sequence_view,
                                         &cmeta_type_collection_view)
@@ -342,15 +348,61 @@ static void generated_headers(const Graph *g, const Module *m,
 
 static void response(NinjaEdge *edge, const Strings *program,
                      const Strings *args, const char *output,
-                     const Toolchain *tools) {
+                     const Toolchain *tools, const char *file_option) {
   const char *rsp =
       format_string("{}{}", output, tools->artifacts.response_suffix);
   Strings invoke = {0};
   add_items(&invoke, program);
-  push(&invoke, format_string("@{}", rsp));
+  if (file_option) {
+    push(&invoke, file_option);
+    push(&invoke, rsp);
+  } else
+    push(&invoke, format_string("@{}", rsp));
   edge->run = edge_value(command(&invoke));
   edge->response = edge_value(rsp);
-  edge->argv = edge_value(command(args));
+  // MSVC otherwise decodes response files in the active Windows code page.
+  // NVCC's options file has its own parser and must retain its native format.
+  edge->argv = edge_value(format_string("{}{}",
+                                       tools->msvc && !file_option
+                                           ? "\xef\xbb\xbf" : "",
+                                       command(args)));
+}
+
+static void cuda_common_args(const Graph *g, const Module *m, Strings *args) {
+  push(args, format_string("--compiler-bindir={}", m->tools->cxx));
+  const char *arch = opt(m, "cudaArchitecture", NULL);
+  if (arch) {
+    if (!*arch || arch[strspn(arch, "0123456789")])
+      failf("{}: cudaArchitecture must be a numeric compute capability", m->name);
+    push(args, format_string("--generate-code=arch=compute_{},code=[compute_{},sm_{}]",
+                             arch, arch, arch));
+  }
+  if (!same(opt(m, "lto", "none"), "none") ||
+      *opt(m, "sanitizers", ""))
+    failf("{}: CUDA compilation does not support lto or sanitizers", m->name);
+  Strings flags = {0};
+  read_strings(&flags, get(&m->options, "cudaFlags"), m->name);
+  for (size_t i = 0; i < flags.count; ++i)
+    push(args, module_text(g->project, m, flags.items[i]));
+}
+
+static const char *compile_path(const char *directory, const char *file) {
+  size_t i = 0, shared = 0;
+  while (directory[i] && file[i] && directory[i] == file[i]) {
+    if (file[i] == '/')
+      shared = i + 1;
+    ++i;
+  }
+  if (!directory[i] && (file[i] == '/' || !file[i]))
+    shared = i + (file[i] == '/');
+  if (!shared)
+    return file;
+  Text relative = {0};
+  for (const char *part = directory + (shared > i ? i : shared); *part; ++part)
+    if (*part == '/' || !part[1])
+      append(&relative, "../");
+  append(&relative, file + shared);
+  return relative.length ? contents(&relative) : ".";
 }
 
 static void compile_module(NinjaEdges *edges, Json *database, const Graph *g,
@@ -360,10 +412,19 @@ static void compile_module(NinjaEdges *edges, Json *database, const Graph *g,
   Strings headers = {0};
   generated_headers(g, m, &headers);
   CompileOptions options = compile_options(p, m);
+  if (t->msvc) {
+    // Keep MSVC's include output relative to Ninja's working directory. Its
+    // Windows include normalizer otherwise mixes code pages for Unicode roots.
+    Strings includes = {0};
+    for (size_t i = 0; i < m->compile_usage.includes.count; ++i)
+      push(&includes, compile_path(p->build_dir, m->compile_usage.includes.items[i]));
+    options.includes = string_view(&includes);
+  }
   const BuildTemplate *templ = &templates[compile_template(t)];
   const char *subdir = t == &p->host ? "host/obj" : "obj";
   for (size_t i = 0; i < m->sources.count; ++i) {
     const char *source = m->sources.items[i];
+    const bool cuda = ends(source, ".cu");
     const bool cxx = !ends(source, ".c") && !ends(source, ".m");
     const char *output = path(
         p->build_dir, format_string("{}/{}/{}{}", subdir, m->name,
@@ -375,17 +436,19 @@ static void compile_module(NinjaEdges *edges, Json *database, const Graph *g,
     Strings program = {0}, args = {0};
     if (t->launcher)
       push(&program, t->launcher);
-    push(&program, cxx ? t->cxx : t->cc);
+    push(&program, cuda ? m->cuda_compiler : cxx ? t->cxx : t->cc);
     const char *depfile =
-        t->msvc ? NULL
+        t->msvc && !cuda ? NULL
                 : format_string("{}{}", output, t->artifacts.depfile_suffix);
     const char *standard = cxx ? "cxxStd" : "cStd";
-    options.source = vstr_from_cstr(source);
+    options.source = vstr_from_cstr(t->msvc && !cuda
+                                       ? compile_path(p->build_dir, source) : source);
     options.output = vstr_from_cstr(output);
     options.depfile = vstr_from_cstr(depfile);
     options.cxx = cxx;
     options.objc = contains(&m->objc_sources, source);
-    const char *dialect = opt(m, standard, NULL);
+    const char *dialect = cuda ? opt(m, "cudaStd", opt(m, "cxxStd", "c++17"))
+                               : opt(m, standard, NULL);
     if (dialect && (!*dialect || dialect[strspn(
                                       dialect,
                                       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-")]))
@@ -395,9 +458,33 @@ static void compile_module(NinjaEdges *edges, Json *database, const Graph *g,
         cxx && !same(t->os, "windows") && boolean(m, "visibilityInlinesHidden", false);
     options.policy.rtti = compile_toggle(m, "rtti", cxx);
     options.policy.exceptions = compile_toggle(m, "exceptions", cxx);
-    render_compile_args(templ, m, &options, &args);
+    if (cuda) {
+      CompileOptions cuda_options = options;
+      Strings flags = {0};
+      cuda_common_args(g, m, &flags);
+      for (size_t j = 0; j < m->compile_usage.flags.count; ++j)
+        push(&flags, format_string("-Xcompiler={}", m->compile_usage.flags.items[j]));
+      Strings host_flags = {0};
+      read_strings(&host_flags, get(&m->options, "cudaHostFlags"), m->name);
+      for (size_t j = 0; j < host_flags.count; ++j)
+        push(&flags, format_string("-Xcompiler={}",
+                                  module_text(g->project, m, host_flags.items[j])));
+      if (boolean(m, "cudaRdc", false))
+        push(&flags, "--relocatable-device-code=true");
+      cuda_options.flags = string_view(&flags);
+      render_compile_args(&templates[COMPILE_CUDA], m, &cuda_options, &args);
+    } else {
+      Strings flags = {0}, language_flags = {0};
+      add_items(&flags, &m->compile_usage.flags);
+      read_strings(&language_flags, get(&m->options, cxx ? "cxxFlags" : "cFlags"),
+                    m->name);
+      for (size_t j = 0; j < language_flags.count; ++j)
+        push(&flags, module_text(g->project, m, language_flags.items[j]));
+      options.flags = string_view(&flags);
+      render_compile_args(templ, m, &options, &args);
+    }
     NinjaEdge *edge =
-        new_edge(edges, t->msvc ? RULE_COMPILE_MSVC : RULE_COMPILE_GNU, m);
+        new_edge(edges, t->msvc && !cuda ? RULE_COMPILE_MSVC : RULE_COMPILE_GNU, m);
     edge->outputs = vstr_from_cstr(ninja_path(output));
     edge->inputs = vstr_from_cstr(ninja_path(source));
     Strings order = {0};
@@ -407,11 +494,11 @@ static void compile_module(NinjaEdges *edges, Json *database, const Graph *g,
     }
     // Ninja normalizes MSVC /showIncludes paths relative to the build directory.
     // Keep an explicit dependency when it differs from a task's output path.
-    if (t->msvc)
+    if (t->msvc && !cuda)
       edge->implicit_inputs = edge_files(&order);
     else
       edge->order_only = edge_files(&order);
-    response(edge, &program, &args, output, t);
+    response(edge, &program, &args, output, t, cuda ? "--options-file" : NULL);
     if (depfile)
       edge->dep = edge_value(depfile);
     Json *entry = json_create_object();
@@ -443,13 +530,13 @@ static void track_search_library(const Module *m, const Strings *dirs,
     }
 }
 
-static void library_flags(const Module *m, const Usage *usage,
+static void library_flags(const Graph *g, const Module *m, const Usage *usage,
                           const Strings *dirs, Strings *args, Strings *inputs) {
   const Strings *libs = &usage->libs;
   for (size_t i = 0; i < libs->count; ++i) {
     const char *lib = libs->items[i];
     if (strchr(lib, '/') || strchr(lib, '\\')) {
-      if (!is_file(lib))
+      if (!is_file(lib) && !producer(g, lib))
         failf("{}: link library not found: {}", m->name, lib);
       unique(inputs, lib);
       push(args, lib);
@@ -520,6 +607,34 @@ static void link_module(NinjaEdges *edges, const Graph *g, const Module *m,
   const Toolchain *t = m->tools;
   Strings inputs = {0}, args = {0}, program = {0}, implicit = {0};
   add_items(&inputs, &m->objects);
+  if (m->cuda_compiler && boolean(m, "cudaDeviceLink", false)) {
+    if (!boolean(m, "cudaRdc", false))
+      failf("{}: cudaDeviceLink requires cudaRdc", m->name);
+    const char *directory = m->tools == &g->project->host ? "host/obj" : "obj";
+    const char *output = path(g->project->build_dir,
+        format_string("{}/{}/cuda_device_link{}", directory, m->name,
+                      t->artifacts.object_suffix));
+    if (producer(g, output))
+      failf("{} conflicts with a CUDA device-link output", output);
+    Strings cuda_program = {0}, cuda_args = {0};
+    push(&cuda_program, m->cuda_compiler);
+    cuda_common_args(g, m, &cuda_args);
+    push(&cuda_args, "--device-link");
+    if (t->msvc) {
+      const char *runtime = opt(m, "runtimeLib", "dynamic");
+      push(&cuda_args, format_string("-Xcompiler=/{}{}",
+           same(runtime, "dynamic") ? "MD" : "MT",
+           same(g->project->config, "debug") ? "d" : ""));
+    }
+    add_items(&cuda_args, &m->objects);
+    push(&cuda_args, "-o");
+    push(&cuda_args, output);
+    NinjaEdge *device = new_edge(edges, RULE_LINK, m);
+    device->outputs = vstr_from_cstr(ninja_path(output));
+    device->inputs = edge_files(&m->objects);
+    response(device, &cuda_program, &cuda_args, output, t, "--options-file");
+    push(&inputs, output);
+  }
   const BuildTemplate *templ = &templates[link_template(m)];
   RuleKind rule = RULE_ARCHIVE;
   if (m->kind == MODULE_STATIC) {
@@ -528,7 +643,7 @@ static void link_module(NinjaEdges *edges, const Graph *g, const Module *m,
     push(&program, m->artifact);
     push(&program, t->ar);
     render_link_args(templ, m, NULL, &(Strings){0}, &args);
-    add_items(&args, &m->objects);
+    add_items(&args, &inputs);
   } else {
     rule = RULE_LINK;
     push(&program, t->ld);
@@ -547,9 +662,9 @@ static void link_module(NinjaEdges *edges, const Graph *g, const Module *m,
         collect_lib_dirs(&dirs, &dep->private_usage);
     }
     render_link_args(templ, m, pdb, &dirs, &args);
-    add_items(&args, &m->objects);
-    library_flags(m, &m->public_usage, &dirs, &args, &inputs);
-    library_flags(m, &m->private_usage, &dirs, &args, &inputs);
+    add_items(&args, &inputs);
+    library_flags(g, m, &m->public_usage, &dirs, &args, &inputs);
+    library_flags(g, m, &m->private_usage, &dirs, &args, &inputs);
     for (size_t i = 0; i < modules.count; ++i) {
       const Module *dep = find_module(g, modules.items[i]);
       const char *file = dep->import_lib ? dep->import_lib : dep->artifact;
@@ -557,9 +672,9 @@ static void link_module(NinjaEdges *edges, const Graph *g, const Module *m,
         unique(&inputs, file);
         push(&args, file);
       }
-      library_flags(m, &dep->public_usage, &dirs, &args, &inputs);
+      library_flags(g, m, &dep->public_usage, &dirs, &args, &inputs);
       if (link_private(dep))
-        library_flags(m, &dep->private_usage, &dirs, &args, &inputs);
+        library_flags(g, m, &dep->private_usage, &dirs, &args, &inputs);
     }
   }
   if (m->import_lib)
@@ -568,7 +683,7 @@ static void link_module(NinjaEdges *edges, const Graph *g, const Module *m,
   edge->outputs = vstr_from_cstr(ninja_path(m->artifact));
   edge->implicit_outputs = edge_files(&implicit);
   edge->inputs = edge_files(&inputs);
-  response(edge, &program, &args, m->artifact, t);
+  response(edge, &program, &args, m->artifact, t, NULL);
   mkdirs(parent(m->artifact));
   if (m->import_lib)
     mkdirs(parent(m->import_lib));
@@ -637,6 +752,9 @@ static void emit_aliases(NinjaEdges *edges, const Graph *g) {
     Strings outputs = {0};
     if (m->artifact)
       push(&outputs, m->artifact);
+    if (m->kind == MODULE_HEADER_ONLY && m->test_name)
+      for (size_t j = 0; j < m->runtime_deps.count; ++j)
+        unique(&outputs, module_alias(find_module(g, m->runtime_deps.items[j])));
     for (size_t j = 0; j < g->task_count; ++j) {
       const Task *task = g->tasks[j];
       if (task->owner == m && task->selected)
@@ -771,6 +889,8 @@ static void load_templates(const Graph *g, BuildTemplate *templates) {
     const TemplateId compiler = compile_template(m->tools);
     if (!templates[compiler].file)
       templates[compiler] = read_template(g->project, compiler);
+    if (m->cuda_compiler && !templates[COMPILE_CUDA].file)
+      templates[COMPILE_CUDA] = read_template(g->project, COMPILE_CUDA);
     const TemplateId id = link_template(m);
     if (!templates[id].file)
       templates[id] = read_template(g->project, id);
@@ -1135,6 +1255,7 @@ static Text render_manifest(const BuildTemplate *templ, const NinjaEdges *edges,
                                 .shape = &rule_shape};
   const NinjaTemplateData data = {
       .link_pool_depth = depth,
+      .compile_pool_depth = edges->compile_depth,
       .edges = {edges->items, edges->count, sizeof(*edges->items), &edge},
       .rules = {edges->rules, edges->rule_count, sizeof(*edges->rules), &rule}};
   JINJA_CMETA_RENDER_OPTIONS limits = JINJA_CMETA_RENDER_OPTIONS_INIT;
@@ -1156,6 +1277,14 @@ static Text render_manifest(const BuildTemplate *templ, const NinjaEdges *edges,
 void emit_ninja(Graph *g) {
   const Project *p = g->project;
   NinjaEdges edges = {0};
+  const Json *compile_depth = get(&p->fields, "compilePoolDepth");
+  if (compile_depth) {
+    double value = json_type(compile_depth) == JSON_NUMBER
+                       ? json_number(compile_depth) : 0;
+    if (!(value >= 1 && value <= 1024) || value != (int)value)
+      fail("invalid compilePoolDepth");
+    edges.compile_depth = (int)value;
+  }
   Json *database = own(json_create_array());
   const Json *setting = get(&p->fields, "linkPoolDepth");
   double depth =
